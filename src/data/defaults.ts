@@ -31,6 +31,37 @@ export interface MineralItem {
   highlight?: { index: string; title: string; body: string };
 }
 
+/** One header navigation button. Built-ins mirror home sections;
+ *  admin-added custom links carry `custom: true`. */
+export interface HeaderNavItem {
+  id: string;
+  label: string;
+  blurb: string;
+  promise: string;
+  href: string;
+  visible: boolean;
+  custom?: boolean;
+}
+
+export interface FooterLink {
+  label: string;
+  /** Destination section/page id (see Footer `go`). */
+  targetId: string;
+}
+
+export interface FooterColumn {
+  id: string;
+  title: string;
+  links: FooterLink[];
+}
+
+export interface FooterSocial {
+  id: string;
+  label: string;
+  href: string;
+  icon: "instagram" | "youtube" | "x";
+}
+
 export interface EraItem {
   id: string;
   age: string;
@@ -90,15 +121,40 @@ export interface ProtocolStep {
   detail: string;
 }
 
-export type SectionId =
+export type BuiltinSectionId =
   | "hero"
   | "intro"
   | "highlights"
+  | "categories"
   | "collection"
   | "glow"
   | "deeptime"
   | "stories"
   | "visit";
+
+/** Built-in sections plus admin-created custom sections (`custom-…`). */
+export type SectionId = BuiltinSectionId | (string & {});
+
+/** A fully admin-authored section: every text, photo and element is
+ *  editable from the Admin Panel, and it can be added, reordered,
+ *  hidden or deleted exactly like a built-in section. */
+export interface CustomSectionItem {
+  id: string;
+  /** Name shown in the admin's section list. */
+  label: string;
+  overline: string;
+  titlePrefix: string;
+  titleHighlight: string;
+  subtitle: string;
+  body: string;
+  accent: string;
+  photoId: string;
+  layout: "split" | "center" | "cards";
+  /** Bullet / card points — add, edit and remove freely in the panel. */
+  points: string[];
+  ctaText: string;
+  ctaHref: string;
+}
 
 export interface SectionMeta {
   id: SectionId;
@@ -126,6 +182,29 @@ export interface SiteConfig {
     footerTagline: string;
     copyrightText: string;
   };
+  header: {
+    /** One entry per header nav button (built-ins + custom links). */
+    navItems: HeaderNavItem[];
+    contactLabel: string;
+    contactBlurb: string;
+    contactPromise: string;
+    contactHref: string;
+    showContactCta: boolean;
+    /** Mobile-menu heading above the category page links. */
+    categoryPagesLabel: string;
+    /** Dropdown meta suffix after the specimen count. */
+    dropdownPageSuffix: string;
+  };
+  footer: {
+    columns: FooterColumn[];
+    socials: FooterSocial[];
+    cabinetsTitle: string;
+    exhibitionHomeLabel: string;
+    adminButtonLabel: string;
+    backToTopLabel: string;
+    showAdminButton: boolean;
+    showSocials: boolean;
+  };
   contact: {
     phoneDisplay: string;
     phoneHref: string;
@@ -149,6 +228,18 @@ export interface SiteConfig {
     tickerLabel: string;
     showTicker: boolean;
     stats: StatItem[];
+    /** Optional media-library photos for the 4 cinematic backdrop
+     *  slots; an empty slot keeps the built-in gallery plate. */
+    backdropPhotoIds: string[];
+    /** Rotating museum-seal text after the brand name. */
+    sealText: string;
+    /** Show / hide the rotating museum seal element. */
+    showSeal: boolean;
+    /** Show / hide the opening brand title-card element. */
+    showOpening: boolean;
+    /** Explicit hero slider specimens (in order). Empty = automatic:
+     *  the featured specimen followed by the next four in the vault. */
+    slideSpecimenIds: string[];
   };
   intro: {
     chapter: string;
@@ -167,6 +258,12 @@ export interface SiteConfig {
     pubTitleHighlight: string;
     pubDescription: string;
     pubButtonText: string;
+    /** Where the consultation banner button leads ("#visit", "#/contact", …). */
+    pubButtonHref: string;
+    /** Show / hide the curator signature under the big quote. */
+    showCurator: boolean;
+    /** Show / hide the private-consultation banner entirely. */
+    showBanner: boolean;
   };
   highlights: {
     chapter: string;
@@ -186,6 +283,22 @@ export interface SiteConfig {
     showSearch: boolean;
     showSort: boolean;
     showSavedFilter: boolean;
+    /** Show / hide the category filter chips row. */
+    showCategoryChips: boolean;
+    searchPlaceholder: string;
+    savedLabel: string;
+    sortLabelName: string;
+    sortLabelRarity: string;
+    sortLabelHardest: string;
+    sortLabelSoftest: string;
+    /** Supports `{shown}` and `{total}` placeholders. */
+    resultCountText: string;
+    resetFiltersText: string;
+    cardButtonText: string;
+    emptyTitle: string;
+    emptyText: string;
+    emptySavedText: string;
+    emptyButtonText: string;
   };
   glow: {
     chapter: string;
@@ -201,6 +314,22 @@ export interface SiteConfig {
     captionOff: string;
     note: string;
     emissions: EmissionFact[];
+    /** Lamp console labels (all editable). */
+    consoleTitle: string;
+    lampLabel: string;
+    wavelengthLabel: string;
+    shortwaveLabel: string;
+    longwaveLabel: string;
+    intensityLabel: string;
+    resetLabel: string;
+    emissionsTitle: string;
+    badgePrefix: string;
+    badgeOffText: string;
+    creditText: string;
+    /** How the lab opens for the visitor (the reset button returns here). */
+    defaultLampOn: boolean;
+    defaultWavelength: number;
+    defaultIntensity: number;
   };
   deeptime: {
     chapter: string;
@@ -209,6 +338,8 @@ export interface SiteConfig {
     titleHighlight: string;
     subtitle: string;
     accent: string;
+    /** Small hint beside the timeline arrows. */
+    dragHint: string;
     eras: EraItem[];
   };
   stories: {
@@ -218,6 +349,11 @@ export interface SiteConfig {
     titleHighlight: string;
     subtitle: string;
     accent: string;
+    /** Micro-labels on the cards and inside the reading modal. */
+    minutesSuffix: string;
+    modalReadLabel: string;
+    modalFooterNote: string;
+    modalBackLabel: string;
     articles: ArticleItem[];
   };
   visit: {
@@ -237,35 +373,184 @@ export interface SiteConfig {
     inquiryTitlePrefix: string;
     inquiryTitleHighlight: string;
     inquiryDescription: string;
+    /** Direct-contact channel button labels. */
+    callLabel: string;
+    whatsappLabel: string;
+    telegramLabel: string;
+    /** Prefilled WhatsApp message — supports `{brand}`. */
+    whatsappPrefill: string;
+    /** Inquiry form texts. */
+    namePlaceholder: string;
+    contactPlaceholder: string;
+    generalInquiryLabel: string;
+    messagePlaceholder: string;
+    sendButtonText: string;
+    successTitle: string;
+    /** Supports `{name}` (", Name" when given) and `{contact}`. */
+    successText: string;
+    sendAnotherText: string;
+    errorText: string;
+    defaultInquiryName: string;
+    defaultInquiryMessage: string;
+  };
+  categoriesSection: {
+    /** Small badge in the heading row (defaults to "Cabinets"). */
+    chapter: string;
+    overline: string;
+    /** Supports the `{count}` placeholder (number of cabinets). */
+    titlePrefix: string;
+    titleHighlight: string;
+    subtitle: string;
+    accent: string;
   };
   categories: CategoryItem[];
+  customSections: CustomSectionItem[];
+  /** Built-in sections the admin deliberately deleted — remembered so
+   *  the defaults-merge never resurrects them on the next load. */
+  deletedSectionIds: string[];
   media: Record<string, SpecimenPhoto>;
   minerals: MineralItem[];
   inquiries: BuyerInquiry[];
+  /** Arabic content overlay (translated strings only) — merged over
+   *  the base config when the site language is Arabic. Written by the
+   *  Admin Panel's Arabic editing mode; see src/data/i18n.ts. */
+  ar?: unknown;
 }
 
 export const DEFAULT_CONFIG: SiteConfig = {
   brand: {
-    name: "LITHOS",
+    name: "Vernajewel",
     subtitle: "Haute Mineralogie · Private Salon & Archive",
     estLabel: "CURATED ARCHIVE · GENEVA · LONDON · SAN FRANCISCO",
     footerTagline:
       "An international private salon dedicated to museum-calibre crystals, native precious metals, and pre-terrestrial meteorites — presented with full provenance for private collectors, institutions, and architectural spaces.",
-    copyrightText: "© 2026 LITHOS Haute Mineralogie · Private Salon & Archival Consultations",
+    copyrightText: "© 2026 Vernajewel Haute Mineralogie · Private Salon & Archival Consultations",
   },
   contact: {
     phoneDisplay: "+1 (415) 890-4312",
     phoneHref: "+14158904312",
     whatsappNumber: "14158904312",
-    telegramHandle: "lithos_gallery",
-    email: "concierge@lithos-gallery.com",
+    telegramHandle: "Vernajewel",
+    email: "concierge@Vernajewel.com",
     address: "12 Meridian Avenue, Suite 2B · Museum Quarter",
     availabilityNote: "Tue – Sun · 10:00 – 19:00 · Personal response from our curatorial desk",
+  },
+  header: {
+    navItems: [
+      {
+        id: "highlights",
+        label: "Highlights",
+        blurb: "Masterworks of the Salon",
+        promise:
+          "The icons the whole exhibition is built around — Sweet Home rhodochrosite, Mundrabilla iron, crystalline gold and phantom fluorite, each with its full story.",
+        href: "#/highlights",
+        visible: true,
+      },
+      {
+        id: "categories",
+        label: "Cabinets",
+        blurb: "Five cabinets, five worlds",
+        promise:
+          "A dedicated page for every cabinet — Gemstones, Metals & Ores, Meteorites, Fluorescent and Classic Species — with its own essay, stats and specimen list.",
+        href: "#/cabinets",
+        visible: true,
+      },
+      {
+        id: "collection",
+        label: "Collection",
+        blurb: "The Specimen Vault",
+        promise:
+          "Every catalogued plate in one searchable vault: filter by cabinet, compare Mohs hardness and rarity, build a private shortlist and inquire directly.",
+        href: "#/collection",
+        visible: true,
+      },
+      {
+        id: "glow",
+        label: "Glow Room",
+        blurb: "Photoluminescence Lab",
+        promise:
+          "Take command of the UV bench — switch between 254 nm and 365 nm and watch Franklin willemite and calcite ignite in the dark.",
+        href: "#/glow-room",
+        visible: true,
+      },
+      {
+        id: "deeptime",
+        label: "Deep Time",
+        blurb: "Planetary Chronology",
+        promise:
+          "Six geological acts across 4.56 billion years — from presolar iron and Hadean zircon to hydrothermal cathedrals and lab-grown bismuth.",
+        href: "#/deep-time",
+        visible: true,
+      },
+      {
+        id: "stories",
+        label: "Field Notes",
+        blurb: "Curatorial Journal",
+        promise:
+          "Long-form dispatches from the mineralogical desk: what a mineral really is, how crystals grow, and iron from the heart of a vanished world.",
+        href: "#/field-notes",
+        visible: true,
+      },
+    ],
+    contactLabel: "Direct contact",
+    contactBlurb: "Private Salon & Collector Desk",
+    contactPromise:
+      "No shopping cart, no checkout — request a dossier, daylight & UV macro video and provenance papers by telephone, WhatsApp or Telegram, answered personally by the curatorial desk.",
+    contactHref: "#/contact",
+    showContactCta: true,
+    categoryPagesLabel: "Category pages",
+    dropdownPageSuffix: "dedicated page",
+  },
+  footer: {
+    columns: [
+      {
+        id: "col-exhibition",
+        title: "Exhibition",
+        links: [
+          { label: "Masterwork Highlights", targetId: "highlights" },
+          { label: "The Specimen Vault", targetId: "collection" },
+          { label: "Photoluminescence Lab", targetId: "glow" },
+          { label: "Deep Time Chronology", targetId: "deeptime" },
+        ],
+      },
+      {
+        id: "col-journal",
+        title: "Curatorial Journal",
+        links: [
+          { label: "All Dispatches", targetId: "stories" },
+          { label: "Laws of Crystalline Matter", targetId: "stories" },
+          { label: "Crystal Growth Physics", targetId: "stories" },
+          { label: "Pre-Terrestrial Iron", targetId: "stories" },
+        ],
+      },
+      {
+        id: "col-salon",
+        title: "Private Salon",
+        links: [
+          { label: "Collector Concierge", targetId: "visit" },
+          { label: "Telephone & WhatsApp Desk", targetId: "visit" },
+          { label: "Request a Dossier", targetId: "visit" },
+          { label: "Curatorial Manifesto", targetId: "intro" },
+        ],
+      },
+    ],
+    socials: [
+      { id: "soc-instagram", label: "Instagram", href: "https://www.instagram.com", icon: "instagram" },
+      { id: "soc-youtube", label: "YouTube", href: "https://www.youtube.com", icon: "youtube" },
+      { id: "soc-x", label: "X (Twitter)", href: "https://www.x.com", icon: "x" },
+    ],
+    cabinetsTitle: "The Cabinets",
+    exhibitionHomeLabel: "← Exhibition home",
+    adminButtonLabel: "Admin Panel",
+    backToTopLabel: "Back to the surface",
+    showAdminButton: true,
+    showSocials: true,
   },
   sectionsOrder: [
     { id: "hero", label: "Hero Showcase", visible: true },
     { id: "intro", label: "Curatorial Manifesto", visible: true },
     { id: "highlights", label: "Masterwork Highlights", visible: true },
+    { id: "categories", label: "The Cabinets (Category Pages)", visible: true },
     { id: "collection", label: "The Specimen Vault", visible: true },
     { id: "glow", label: "Glow Room (UV Lab)", visible: true },
     { id: "deeptime", label: "Deep Time Chronology", visible: true },
@@ -285,6 +570,11 @@ export const DEFAULT_CONFIG: SiteConfig = {
     featuredSpecimenId: "amethyst",
     tickerLabel: "Archival Plates · Ten Masterworks",
     showTicker: true,
+    backdropPhotoIds: ["", "", "", ""],
+    sealText: "COLLECTION · 2026 ·",
+    showSeal: true,
+    showOpening: true,
+    slideSpecimenIds: [],
     stats: [
       { value: 80000, suffix: "+", label: "Catalogued archive specimens" },
       { value: 4.56, suffix: "B", label: "Years of planetary history", decimals: 2 },
@@ -301,7 +591,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     curatorRole: "Chief Curator & Principal Mineralogist",
     curatorInitials: "EM",
     paragraph1:
-      "Assembled through generations of high-altitude expeditions, historic European estate dispersions, and institutional exchanges, the LITHOS archive preserves natural sculptures that can never be mined again — pristine crystal architectures recovered from pockets long since sealed by time.",
+      "Assembled through generations of high-altitude expeditions, historic European estate dispersions, and institutional exchanges, the Vernajewel archive preserves natural sculptures that can never be mined again — pristine crystal architectures recovered from pockets long since sealed by time.",
     paragraph2:
       "We operate as a private curatorial salon rather than an automated storefront. Every specimen is accompanied by its geological biography, historical pedigree, and custom-fitted brass display armature. Explore the plates below, and connect directly with our curators by telephone, WhatsApp, or private message.",
     tiles: [
@@ -316,6 +606,9 @@ export const DEFAULT_CONFIG: SiteConfig = {
     pubDescription:
       "Request daylight and UV macro cinematography, complete provenance dossiers, custom-milled brass mounts, or a private one-on-one consultation with our curatorial desk.",
     pubButtonText: "Speak with a curator",
+    pubButtonHref: "#visit",
+    showCurator: true,
+    showBanner: true,
   },
   highlights: {
     chapter: "01 / 06",
@@ -332,11 +625,27 @@ export const DEFAULT_CONFIG: SiteConfig = {
     titlePrefix: "The Specimen ",
     titleHighlight: "Vault",
     subtitle:
-      "Examine ten signature plates from the LITHOS archive. Filter by mineralogical lineage, compare crystal symmetry and Mohs hardness, curate your private shortlist, and inquire directly on any piece.",
+      "Examine ten signature plates from the Vernajewel archive. Filter by mineralogical lineage, compare crystal symmetry and Mohs hardness, curate your private shortlist, and inquire directly on any piece.",
     accent: "#8fe4df",
     showSearch: true,
     showSort: true,
     showSavedFilter: true,
+    showCategoryChips: true,
+    searchPlaceholder:
+      "Search species, chemistry, provenance, or locality… try “Tsumeb”, “copper” or “Pakistan”",
+    savedLabel: "Saved",
+    sortLabelName: "Name · A–Z",
+    sortLabelRarity: "Rarest first",
+    sortLabelHardest: "Hardest first",
+    sortLabelSoftest: "Softest first",
+    resultCountText: "Showing {shown} of {total} specimens",
+    resetFiltersText: "Reset filters",
+    cardButtonText: "Details & Direct Inquiry",
+    emptyTitle: "No specimens match that search",
+    emptyText: "Try a broader term, or clear the filters to see the whole vault.",
+    emptySavedText:
+      "You haven't saved any specimens yet — tap the heart on a card to build your private shortlist.",
+    emptyButtonText: "Show all specimens",
   },
   glow: {
     chapter: "03 / 06",
@@ -360,6 +669,20 @@ export const DEFAULT_CONFIG: SiteConfig = {
       { name: "Calcite", formula: "CaCO₃", color: "#ff9a70", emits: "Incandescent crimson" },
       { name: "Fluorite", formula: "CaF₂", color: "#b48cf2", emits: "Deep violet-blue" },
     ],
+    consoleTitle: "Lamp console",
+    lampLabel: "Ultraviolet lamp",
+    wavelengthLabel: "Wavelength",
+    shortwaveLabel: "Shortwave · 254",
+    longwaveLabel: "Longwave · 365",
+    intensityLabel: "Lamp intensity",
+    resetLabel: "Reset console",
+    emissionsTitle: "What you're seeing",
+    badgePrefix: "UV lamp",
+    badgeOffText: "Daylight · lamp off",
+    creditText: "Interactive lighting visualization. Photo credit:",
+    defaultLampOn: true,
+    defaultWavelength: 254,
+    defaultIntensity: 75,
   },
   deeptime: {
     chapter: "04 / 06",
@@ -369,6 +692,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     subtitle:
       "Minerals did not merely witness Earth’s evolution — they co-authored it. Trace the planetary archive from presolar nebula condensates to modern crystal synthesis.",
     accent: "#e6b45a",
+    dragHint: "Drag or scroll",
     eras: [
       {
         id: "era-stardust",
@@ -438,6 +762,10 @@ export const DEFAULT_CONFIG: SiteConfig = {
     subtitle:
       "Long-form dispatches from our curators and laboratory directors on crystal physics, closed-mine provenance, and the art of living with deep time.",
     accent: "#f27d9e",
+    minutesSuffix: "min",
+    modalReadLabel: "min read",
+    modalFooterNote: "From the field notes",
+    modalBackLabel: "Back to the gallery",
     articles: [
       {
         id: "what-is-a-mineral",
@@ -454,7 +782,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
           "In casual conversation, almost anything pulled from a mountain is called a stone. In crystallography, however, the word mineral is guarded by five strict criteria: a substance must be naturally occurring, formed through abiogenic geological processes, solid at ambient temperature, defined by a specific chemical formula, and — most decisive of all — ordered into a repeating three-dimensional atomic lattice.",
           "That final requirement draws fascinating borders across the natural world. Glacial snowfall, once compacted into crystalline ice, satisfies all five laws; liquid mercury, though native to cinnabar veins, fails solidity until chilled below −39 °C. Volcanic obsidian cools too rapidly for its silica tetrahedra to organise, remaining an amorphous glass, while precious opal owes its play-of-colour to microscopic silica spheres rather than a true atomic lattice.",
           "Why insist on geometry? Because structure is destiny. Diamond and graphite share an identical formula — pure elemental carbon — yet one cleaves light with unmatched Mohs-10 hardness while the other parts at the touch of paper. Four-fold covalent cages in the mantle produce brilliance; hexagonal sheets produce shadow. Chemistry merely proposes; the crystal lattice disposes.",
-          "More than 6,100 species have now been ratified by the International Mineralogical Association, from ubiquitous quartz to alpine rarities known from a single pinhead grain. When you stand before a vitrine at LITHOS, you are not looking at carved ornament — you are looking at matter solving the equations of thermodynamics in stone.",
+          "More than 6,100 species have now been ratified by the International Mineralogical Association, from ubiquitous quartz to alpine rarities known from a single pinhead grain. When you stand before a vitrine at Vernajewel, you are not looking at carved ornament — you are looking at matter solving the equations of thermodynamics in stone.",
         ],
         pullQuote: "Chemistry merely proposes; the crystal lattice disposes.",
       },
@@ -560,7 +888,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
         accent: "#f27d9e",
         title: "Exhibition Salon",
         lines: [
-          "LITHOS Private Gallery",
+          "Vernajewel Private Gallery",
           "12 Meridian Avenue · Suite 2B",
           "Museum Quarter · Vault Level",
         ],
@@ -570,7 +898,33 @@ export const DEFAULT_CONFIG: SiteConfig = {
     inquiryTitleHighlight: "Private Dossier",
     inquiryDescription:
       "Select a specimen of interest or describe the scale and palette you are seeking. Our senior curator will reply personally with high-resolution video, provenance records, and acquisition terms.",
+    callLabel: "Call",
+    whatsappLabel: "WhatsApp Message",
+    telegramLabel: "Telegram",
+    whatsappPrefill: "Hello {brand}, I would like to ask about your mineral collection.",
+    namePlaceholder: "Your name",
+    contactPlaceholder: "Phone, WhatsApp or Email *",
+    generalInquiryLabel: "General collection inquiry (optional)",
+    messagePlaceholder: "Write your message or preferred time for a phone call…",
+    sendButtonText: "Send Message",
+    successTitle: "Message received.",
+    successText: "Thank you{name}. We will reach back via {contact} shortly.",
+    sendAnotherText: "Send another message",
+    errorText: "Please enter a valid phone number, WhatsApp, or email address.",
+    defaultInquiryName: "Collector Inquiry",
+    defaultInquiryMessage: "Please contact me regarding the mineral collection.",
   },
+  categoriesSection: {
+    chapter: "Cabinets",
+    overline: "The Cabinets",
+    titlePrefix: "{count} cabinets,",
+    titleHighlight: "{count} worlds",
+    subtitle:
+      "The salon is one room, but each discipline inside it has its own laws. Enter a cabinet to read its story, meet its defining specimens, and browse the full cabinet list on its own page.",
+    accent: "#b48cf2",
+  },
+  customSections: [],
+  deletedSectionIds: [],
   categories: [
     { id: "cat-gemstones", name: "Gemstones", color: "#8fe4df" },
     { id: "cat-metals", name: "Metals & Ores", color: "#e6b45a" },
@@ -596,7 +950,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
       size: "68 × 49 × 34 cm · 94 kg",
       rarity: 3,
       accent: "#b48cf2",
-      provenance: "Ex. Montevideo Private Estate · Acquired by LITHOS Archive, 1962",
+      provenance: "Ex. Montevideo Private Estate · Acquired by Vernajewel Archive, 1962",
       grade: "Architectural Salon Masterpiece · Natural Agate Rind",
       photoId: "amethyst",
       story:

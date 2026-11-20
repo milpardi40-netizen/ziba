@@ -9,7 +9,9 @@ import {
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Compass } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useCms } from "../data/store";
+import { ui } from "../data/i18n";
 import { CountUp, EASE, GemMark } from "./ui";
+import { LogoMark } from "./Logo";
 import SpecimenImage from "./SpecimenImage";
 import backdrop1 from "../assets/backdrops/backdrop-1.jpg";
 
@@ -42,17 +44,22 @@ export default function Hero({
   onStartTour: () => void;
   onOpen: (id: string) => void;
 }) {
-  const { config, getPhoto } = useCms();
+  const { config, getPhoto, lang } = useCms();
   const h = config.hero;
 
-  // Slider: featured specimen first, then a handful of samples from the vault
+  // Slider: the admin's explicit slide list when one is set (Admin →
+  // Hero Section), otherwise featured specimen + next four from the vault.
   const slides = useMemo(() => {
+    const explicit = (h.slideSpecimenIds ?? [])
+      .map((id) => config.minerals.find((m) => m.id === id))
+      .filter((m): m is NonNullable<typeof m> => Boolean(m));
+    if (explicit.length > 0) return explicit;
     const first =
       config.minerals.find((m) => m.id === h.featuredSpecimenId) ?? config.minerals[0];
     if (!first) return [];
     const rest = config.minerals.filter((m) => m.id !== first.id);
     return [first, ...rest].slice(0, SLIDE_COUNT);
-  }, [config.minerals, h.featuredSpecimenId]);
+  }, [config.minerals, h.featuredSpecimenId, h.slideSpecimenIds]);
 
   const [slide, setSlide] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
@@ -108,6 +115,15 @@ export default function Hero({
     return () => window.clearInterval(id);
   }, []);
 
+  // Admin override: any backdrop slot may be replaced with a photo from
+  // the media library (Admin → Sections → Hero). Empty slot = built-in plate.
+  const backdropSrcs = BACKDROP_SRCS.map((_, i) => {
+    const customId = h.backdropPhotoIds?.[i];
+    if (customId && config.media[customId]) return config.media[customId].src;
+    return resolvedBackdrops[i];
+  });
+  const backdropIndex = backdrop % backdropSrcs.length;
+
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   // bgY حذف شد — parallax روی backdrop سنگین‌ترین عامل janky scroll بود
@@ -159,13 +175,13 @@ export default function Hero({
       <div
         className="pointer-events-none absolute inset-0 overflow-hidden"
         aria-hidden
-        data-backdrop={backdrop}
+        data-backdrop={backdropIndex}
       >
         <AnimatePresence initial={false}>
-          {resolvedBackdrops[backdrop] && (
+          {backdropSrcs[backdropIndex] && (
             <motion.img
-              key={backdrop}
-              src={resolvedBackdrops[backdrop]}
+              key={backdropIndex}
+              src={backdropSrcs[backdropIndex]}
               alt=""
               initial={{ opacity: 0, scale: 1.04 }}
               animate={{ opacity: 1, scale: 1.1 }}
@@ -220,19 +236,27 @@ export default function Hero({
         <div className="grid w-full items-center gap-12 lg:grid-cols-[1.12fr_0.88fr] lg:gap-16 xl:gap-24">
           {/* LEFT */}
           <div className="min-w-0">
+            {(h.badgeText.trim() || h.editionText.trim()) && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1, ease: EASE }}
               className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[10px] tracking-[0.28em] text-mist uppercase"
             >
+              {h.badgeText.trim() && (
               <span className="flex items-center gap-2.5">
                 <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-malachite" />
                 {h.badgeText}
               </span>
+              )}
+              {h.badgeText.trim() && h.editionText.trim() && (
               <span className="hidden h-px w-8 bg-edge sm:block" />
+              )}
+              {h.editionText.trim() && (
               <span className="text-gold">{h.editionText}</span>
+              )}
             </motion.div>
+            )}
 
             <h1 className="relative mt-7 font-display text-[clamp(3.15rem,7.1vw,7.4rem)] leading-[0.88] text-ivory">
               <span className="block overflow-hidden pb-[0.08em]">
@@ -333,6 +357,7 @@ export default function Hero({
               className="relative mx-auto w-full max-w-[540px] lg:mx-0 lg:ml-auto"
             >
               {/* rotating museum seal */}
+              {h.showSeal && (
               <div className="absolute -top-8 -right-2 z-20 h-24 w-24 sm:-right-8 sm:h-28 sm:w-28" aria-hidden>
                 <div className="rotate-slow absolute inset-0">
                   <svg viewBox="0 0 100 100" className="h-full w-full">
@@ -349,15 +374,16 @@ export default function Hero({
                       letterSpacing="2.6"
                     >
                       <textPath href="#hero-seal-path">
-                        {config.brand.name} · COLLECTION · 2026 ·
+                        {config.brand.name} · {h.sealText}
                       </textPath>
                     </text>
                   </svg>
                 </div>
                 <span className="absolute inset-0 flex items-center justify-center">
-                  <GemMark className="h-7 w-7 text-amethyst drop-shadow-[0_0_10px_#b48cf2]" />
+                  <LogoMark className="h-9 w-auto drop-shadow-[0_0_12px_rgba(230,180,90,0.55)]" />
                 </span>
               </div>
+              )}
 
               <motion.div
                 style={{ y: cardY, rotateX, rotateY, transformPerspective: 1200, willChange: "transform" }}
@@ -370,7 +396,7 @@ export default function Hero({
                 className="group/slider relative aspect-[4/3.32] w-full overflow-hidden rounded-[28px] border border-white/12 bg-surface shadow-[0_40px_100px_-35px_rgba(230,180,90,0.38)] sm:rounded-[36px]"
                 role="region"
                 aria-roledescription="carousel"
-                aria-label="Featured specimens"
+                aria-label={ui(lang, "heroFeatured")}
               >
                 {/* Specimen slides — cinematic crossfade with subtle drift */}
                 <AnimatePresence initial={false} custom={direction} mode="popLayout">
@@ -402,7 +428,7 @@ export default function Hero({
 
                 <div className="absolute top-6 left-6 flex items-center gap-2 rounded-full border border-ivory/20 bg-abyss/90 px-3.5 py-2 font-mono text-[9px] tracking-[0.24em] text-ivory/85 uppercase backdrop-blur-md">
                   <span className="h-1.5 w-1.5 rounded-full bg-gold shadow-[0_0_8px_#e6b45a]" />
-                  Featured specimen · {String(slide + 1).padStart(2, "0")}
+                  {ui(lang, "heroFeatured")} · {String(slide + 1).padStart(2, "0")}
                   <span className="text-dusk">/ {String(slides.length).padStart(2, "0")}</span>
                 </div>
 
@@ -411,17 +437,17 @@ export default function Hero({
                   <>
                     <button
                       onClick={prevSlide}
-                      aria-label="Previous featured specimen"
+                      aria-label={lang === "ar" ? "العينة المميزة السابقة" : "Previous featured specimen"}
                       className="absolute top-1/2 left-4 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-ivory/15 bg-abyss/70 text-ivory opacity-0 backdrop-blur-md transition-all duration-300 group-hover/slider:opacity-100 hover:border-gold/60 hover:text-goldbright focus-visible:opacity-100"
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="flip-rtl h-4 w-4" />
                     </button>
                     <button
                       onClick={nextSlide}
-                      aria-label="Next featured specimen"
+                      aria-label={lang === "ar" ? "العينة المميزة التالية" : "Next featured specimen"}
                       className="absolute top-1/2 right-4 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-ivory/15 bg-abyss/70 text-ivory opacity-0 backdrop-blur-md transition-all duration-300 group-hover/slider:opacity-100 hover:border-gold/60 hover:text-goldbright focus-visible:opacity-100"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="flip-rtl h-4 w-4" />
                     </button>
                   </>
                 )}
@@ -450,7 +476,7 @@ export default function Hero({
                   <div
                     className="absolute right-6 bottom-6 z-10 flex items-center gap-1.5"
                     role="tablist"
-                    aria-label="Choose specimen"
+                    aria-label={lang === "ar" ? "اختيار العينة" : "Choose specimen"}
                   >
                     {slides.map((s: typeof slides[0], i: number) => {
                       const active = i === slide;
@@ -486,7 +512,7 @@ export default function Hero({
                 className="absolute -bottom-7 -left-3 z-20 w-[236px] rounded-2xl border border-white/12 bg-abyss/90 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:-left-10 sm:w-[262px] sm:p-5"
               >
                 <div className="flex items-center justify-between font-mono text-[9px] tracking-[0.2em] text-dusk uppercase">
-                  <span>Specimen file</span>
+                  <span>{ui(lang, "heroSpecimenFile")}</span>
                   <span className="text-malachite">{featured.catalog}</span>
                 </div>
                 <div className="mt-3 flex items-end justify-between gap-3">
@@ -498,7 +524,7 @@ export default function Hero({
                   </div>
                   <button
                     onClick={() => onOpen(featured.id)}
-                    aria-label={`Open the ${featured.name} specimen file`}
+                    aria-label={`${ui(lang, "openSpecimenFile")} — ${featured.name}`}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-[#1a1206] transition-all hover:bg-goldbright hover:shadow-[0_0_20px_rgba(230,180,90,0.5)] active:scale-90"
                   >
                     <ArrowUpRight className="h-4 w-4" />
@@ -535,6 +561,7 @@ export default function Hero({
       )}
 
       {/* opening title card */}
+      {h.showOpening && (
       <motion.div
         className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center bg-ink"
         initial={{ opacity: 1 }}
@@ -551,6 +578,7 @@ export default function Hero({
           {config.brand.name}
         </motion.span>
       </motion.div>
+      )}
     </section>
   );
 }

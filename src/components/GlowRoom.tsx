@@ -6,13 +6,15 @@ import { Reveal, SectionHeading } from "./ui";
 import SpecimenImage from "./SpecimenImage";
 
 export default function GlowRoom() {
-  const { config, getPhoto } = useCms();
+  const { config, getPhoto, lang } = useCms();
   const s = config.glow;
   const photo = getPhoto(s.photoId);
 
-  const [lampOn, setLampOn] = useState(true);
-  const [wavelength, setWavelength] = useState<254 | 365>(254);
-  const [intensity, setIntensity] = useState(75);
+  const [lampOn, setLampOn] = useState(s.defaultLampOn);
+  const [wavelength, setWavelength] = useState<254 | 365>(
+    s.defaultWavelength === 365 ? 365 : 254
+  );
+  const [intensity, setIntensity] = useState(s.defaultIntensity);
 
   const power = intensity / 100;
   const hue = wavelength === 254 ? 0 : 9;
@@ -90,7 +92,7 @@ export default function GlowRoom() {
                     }}
                   />
                   <span className="font-mono text-[10px] tracking-[0.24em] text-ivory/85 uppercase">
-                    {lampOn ? `UV lamp · ${wavelength} nm` : "Daylight · lamp off"}
+                    {lampOn ? `${s.badgePrefix} · ${wavelength} nm` : s.badgeOffText}
                   </span>
                 </div>
                 <div className="absolute bottom-4 left-4 rounded-full border border-ivory/15 bg-ink/75 px-4 py-2 font-mono text-[10px] tracking-[0.2em] text-ivory/70 uppercase backdrop-blur-md">
@@ -106,7 +108,7 @@ export default function GlowRoom() {
                 : s.captionOff}
             </p>
             <p className="mt-2 text-center text-[10px] text-dusk/80">
-              Interactive lighting visualization. Photo credit: {photo.author}.
+              {s.creditText} {photo.author}.
             </p>
           </Reveal>
 
@@ -114,19 +116,19 @@ export default function GlowRoom() {
             <div className="flex h-full flex-col gap-5">
               <div className="rounded-3xl border border-edge bg-surface p-6 backdrop-blur">
                 <div className="font-mono text-[10px] tracking-[0.28em] text-dusk uppercase">
-                  Lamp console
+                  {s.consoleTitle}
                 </div>
 
                 <div className="mt-5 flex items-center justify-between">
                   <span className="flex items-center gap-2.5 text-sm font-bold text-ivory">
                     <Power className={cn("h-4 w-4", lampOn ? "text-malachite" : "text-dusk")} />
-                    Ultraviolet lamp
+                    {s.lampLabel}
                   </span>
                   <button
                     onClick={() => setLampOn((v) => !v)}
                     role="switch"
                     aria-checked={lampOn}
-                    aria-label="Toggle ultraviolet lamp"
+                    aria-label={lang === "ar" ? "تبديل مصباح الأشعة فوق البنفسجية" : "Toggle ultraviolet lamp"}
                     className={cn(
                       "relative h-8 w-15 rounded-full border transition-all duration-300",
                       lampOn
@@ -145,7 +147,7 @@ export default function GlowRoom() {
 
                 <div className="mt-6">
                   <div className="mb-2.5 flex items-center justify-between text-sm">
-                    <span className="font-bold text-ivory">Wavelength</span>
+                    <span className="font-bold text-ivory">{s.wavelengthLabel}</span>
                     <span className="font-mono text-xs text-orchid">{wavelength} nm</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 rounded-2xl border border-edge bg-abyss/90 p-1.5">
@@ -161,7 +163,7 @@ export default function GlowRoom() {
                             : "text-mist hover:text-ivory"
                         )}
                       >
-                        {w === 254 ? "Shortwave · 254" : "Longwave · 365"}
+                        {w === 254 ? s.shortwaveLabel : s.longwaveLabel}
                       </button>
                     ))}
                   </div>
@@ -169,7 +171,7 @@ export default function GlowRoom() {
 
                 <div className="mt-6">
                   <div className="mb-3 flex items-center justify-between text-sm">
-                    <span className="font-bold text-ivory">Lamp intensity</span>
+                    <span className="font-bold text-ivory">{s.intensityLabel}</span>
                     <span className="font-mono text-xs text-malachite">{intensity}%</span>
                   </div>
                   <input
@@ -179,25 +181,25 @@ export default function GlowRoom() {
                     value={intensity}
                     onChange={(e) => setIntensity(Number(e.target.value))}
                     className="gem-range w-full"
-                    aria-label="Lamp intensity"
+                    aria-label={lang === "ar" ? "شدة المصباح" : "Lamp intensity"}
                   />
                 </div>
 
                 <button
                   onClick={() => {
-                    setLampOn(true);
-                    setWavelength(254);
-                    setIntensity(75);
+                    setLampOn(s.defaultLampOn);
+                    setWavelength(s.defaultWavelength === 365 ? 365 : 254);
+                    setIntensity(s.defaultIntensity);
                   }}
                   className="mt-6 w-full rounded-full border border-edge py-3 text-xs font-bold tracking-wide text-mist uppercase transition-colors hover:border-gold/60 hover:text-goldbright"
                 >
-                  Reset console
+                  {s.resetLabel}
                 </button>
               </div>
 
               <div className="rounded-3xl border border-edge bg-surface p-6 backdrop-blur">
                 <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.28em] text-dusk uppercase">
-                  <Zap className="h-3.5 w-3.5 text-gold" /> What you're seeing
+                  <Zap className="h-3.5 w-3.5 text-gold" /> {s.emissionsTitle}
                 </div>
                 <ul className="mt-4 space-y-3">
                   {s.emissions.map((f) => (

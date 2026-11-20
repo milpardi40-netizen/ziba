@@ -14,7 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { slugifyCategory } from "../data/categoryPages";
 import { useCms } from "../data/store";
+import { catLabel, ui } from "../data/i18n";
 import { cn } from "../utils/cn";
 import { MohsBar, RarityGems } from "./ui";
 import SpecimenImage, { PhotoCredit } from "./SpecimenImage";
@@ -34,7 +36,7 @@ export default function SpecimenModal({
   onClose: () => void;
   onNavigate: (id: string) => void;
 }) {
-  const { config, getPhoto, getCategoryColor, submitInquiry } = useCms();
+  const { config, getPhoto, getCategoryColor, submitInquiry, lang } = useCms();
   const minerals = config.minerals;
   const mineral = openId ? minerals.find((m) => m.id === openId) ?? null : null;
   const index = mineral ? minerals.findIndex((m) => m.id === mineral.id) : -1;
@@ -63,8 +65,9 @@ export default function SpecimenModal({
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") step(1);
-      if (e.key === "ArrowLeft") step(-1);
+      const sign = document.documentElement.dir === "rtl" ? -1 : 1;
+      if (e.key === "ArrowRight") step(sign);
+      if (e.key === "ArrowLeft") step(-sign);
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -83,7 +86,7 @@ export default function SpecimenModal({
     e.preventDefault();
     if (!mineral) return;
     if (!buyerName.trim() || !buyerContact.trim()) {
-      setFormErr("Please enter your name and phone number or email.");
+      setFormErr(ui(lang, "modalFormError"));
       return;
     }
     submitInquiry({
@@ -91,7 +94,9 @@ export default function SpecimenModal({
       contact: buyerContact.trim(),
       message:
         buyerMsg.trim() ||
-        `Hello, I would like to inquire about ${mineral.name} (${mineral.catalog}).`,
+        (lang === "ar"
+          ? `مرحباً، أود الاستفسار عن ${mineral.name} (${mineral.catalog}).`
+          : `Hello, I would like to inquire about ${mineral.name} (${mineral.catalog}).`),
       specimenId: mineral.id,
       specimenName: mineral.name,
       specimenCatalog: mineral.catalog,
@@ -103,7 +108,9 @@ export default function SpecimenModal({
 
   const whatsappUrl = mineral
     ? `https://wa.me/${config.contact.whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
-        `Hello, I am interested in ${mineral.name} (${mineral.catalog}). Could we discuss details?`
+        lang === "ar"
+          ? `مرحباً، أنا مهتم بـ ${mineral.name} (${mineral.catalog}). هل يمكننا مناقشة التفاصيل؟`
+          : `Hello, I am interested in ${mineral.name} (${mineral.catalog}). Could we discuss details?`
       )}`
     : "#";
   const telegramUrl = `https://t.me/${config.contact.telegramHandle.replace(/^@/, "")}`;
@@ -119,7 +126,7 @@ export default function SpecimenModal({
           transition={{ duration: 0.25 }}
           role="dialog"
           aria-modal="true"
-          aria-label={`Specimen file: ${mineral.name}`}
+          aria-label={`${ui(lang, "specimenFile")}: ${mineral.name}`}
         >
           <div
             className="absolute inset-0 bg-ink/85 backdrop-blur-md"
@@ -150,16 +157,16 @@ export default function SpecimenModal({
                 {tour ? (
                   <>
                     <Compass className="h-3.5 w-3.5 text-gold" />
-                    Guided tour · stop {index + 1} of {minerals.length}
+                    {ui(lang, "guidedTourStop", { index: index + 1, total: minerals.length })}
                   </>
                 ) : (
-                  <>Specimen file · {mineral.catalog}</>
+                  <>{ui(lang, "specimenFile")} · {mineral.catalog}</>
                 )}
               </span>
               <button
                 onClick={onClose}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-ivory/15 bg-abyss/90 text-ivory backdrop-blur-md transition-colors hover:border-rhodo/60 hover:text-rhodo"
-                aria-label="Close specimen file"
+                aria-label={ui(lang, "closeSpecimenFile")}
               >
                 <X className="h-4.5 w-4.5" />
               </button>
@@ -172,7 +179,7 @@ export default function SpecimenModal({
                   <div className="flex items-center gap-3">
                     <RarityGems value={mineral.rarity} accent={accent} />
                     <span className="font-mono text-[9px] tracking-[0.16em] text-dusk uppercase">
-                      Reference photograph
+                      {ui(lang, "referencePhotograph")}
                     </span>
                   </div>
                   <PhotoCredit photo={photo} />
@@ -181,16 +188,19 @@ export default function SpecimenModal({
 
               <div className="relative flex flex-col overflow-y-auto p-6 pt-2 sm:p-8 md:pt-16">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className="inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] tracking-[0.2em] uppercase"
+                  <a
+                    href={`#/category/${slugifyCategory(mineral.category)}`}
+                    onClick={onClose}
+                    title={ui(lang, "cabinetOwnPage", { name: catLabel(mineral.category, lang) })}
+                    className="inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] tracking-[0.2em] uppercase transition-transform hover:scale-[1.03]"
                     style={{
                       borderColor: `${catColor}55`,
                       color: catColor,
                     }}
                   >
-                    {mineral.category}
+                    {catLabel(mineral.category, lang)}
                     {mineral.glow && <Sparkles className="h-3 w-3" />}
-                  </span>
+                  </a>
                   {mineral.grade && (
                     <span className="rounded-full border border-gold/35 bg-gold/10 px-3 py-1.5 font-mono text-[9.5px] tracking-[0.14em] text-goldbright uppercase">
                       {mineral.grade}
@@ -204,12 +214,12 @@ export default function SpecimenModal({
 
                 <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 rounded-2xl border border-edge bg-surface/95 p-5">
                   {[
-                    ["Formula", mineral.formula],
-                    ["Crystal system", mineral.system],
-                    ["Luster", mineral.luster],
-                    ["In archive since", mineral.acquired],
-                    ["Dimensions", mineral.size],
-                    ["Mohs hardness", mineral.mohsLabel],
+                    [ui(lang, "formula"), mineral.formula],
+                    [ui(lang, "crystalSystem"), mineral.system],
+                    [ui(lang, "luster"), mineral.luster],
+                    [ui(lang, "inArchiveSince"), mineral.acquired],
+                    [ui(lang, "dimensions"), mineral.size],
+                    [ui(lang, "mohsHardness"), mineral.mohsLabel],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <div className="font-mono text-[9px] tracking-[0.2em] text-dusk uppercase">{k}</div>
@@ -219,14 +229,14 @@ export default function SpecimenModal({
                   {mineral.provenance && (
                     <div className="col-span-2 border-t border-edge/60 pt-3.5">
                       <div className="font-mono text-[9px] tracking-[0.2em] text-gold uppercase">
-                        Provenance & Pedigree
+                        {ui(lang, "provenancePedigree")}
                       </div>
                       <div className="mt-1 text-xs font-medium text-mist">{mineral.provenance}</div>
                     </div>
                   )}
                   <div className="col-span-2 border-t border-edge/60 pt-3.5">
                     <div className="mb-2 font-mono text-[9px] tracking-[0.2em] text-dusk uppercase">
-                      Hardness on the Mohs scale
+                      {ui(lang, "hardnessOnMohs")}
                     </div>
                     <MohsBar value={mineral.mohs} accent={accent} />
                   </div>
@@ -236,13 +246,13 @@ export default function SpecimenModal({
                 <div className="mt-5 rounded-2xl border border-gold/30 bg-raised/70 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-mono text-[10px] tracking-[0.2em] text-goldbright uppercase">
-                      Direct collector inquiry
+                      {ui(lang, "directInquiry")}
                     </span>
                     <button
                       onClick={() => setInquireOpen((v) => !v)}
                       className="text-xs font-bold text-gold hover:underline"
                     >
-                      {inquireOpen ? "Hide message form" : "Leave a message"}
+                      {inquireOpen ? ui(lang, "hideMessageForm") : ui(lang, "leaveMessage")}
                     </button>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -251,7 +261,7 @@ export default function SpecimenModal({
                       className="inline-flex items-center gap-1.5 rounded-full bg-gold px-3.5 py-2 text-xs font-bold text-[#1a1206] transition-colors hover:bg-goldbright"
                     >
                       <Phone className="h-3.5 w-3.5" />
-                      Call {config.contact.phoneDisplay}
+                      {ui(lang, "callWord")} {config.contact.phoneDisplay}
                     </a>
                     <a
                       href={whatsappUrl}
@@ -278,7 +288,7 @@ export default function SpecimenModal({
                       {sent ? (
                         <div className="flex items-center gap-2.5 rounded-xl border border-malachite/40 bg-malachite/10 p-3 text-xs text-malachite">
                           <Check className="h-4 w-4 shrink-0" />
-                          Inquiry received for {mineral.name}. We will contact you personally!
+                          {ui(lang, "inquiryReceived", { name: mineral.name })}
                         </div>
                       ) : (
                         <form onSubmit={handleInquiry} className="space-y-2.5">
@@ -287,14 +297,14 @@ export default function SpecimenModal({
                               type="text"
                               value={buyerName}
                               onChange={(e) => setBuyerName(e.target.value)}
-                              placeholder="Your name *"
+                              placeholder={ui(lang, "yourNamePh")}
                               className="rounded-xl border border-edge bg-ink/80 px-3.5 py-2 text-xs text-ivory placeholder:text-dusk focus:border-gold focus:outline-none"
                             />
                             <input
                               type="text"
                               value={buyerContact}
                               onChange={(e) => setBuyerContact(e.target.value)}
-                              placeholder="Phone / WhatsApp / Email *"
+                              placeholder={ui(lang, "phonePh")}
                               className="rounded-xl border border-edge bg-ink/80 px-3.5 py-2 text-xs text-ivory placeholder:text-dusk focus:border-gold focus:outline-none"
                             />
                           </div>
@@ -302,7 +312,7 @@ export default function SpecimenModal({
                             rows={2}
                             value={buyerMsg}
                             onChange={(e) => setBuyerMsg(e.target.value)}
-                            placeholder={`Message about ${mineral.name} (${mineral.catalog})...`}
+                            placeholder={ui(lang, "messageAboutPh", { name: mineral.name, catalog: mineral.catalog })}
                             className="w-full rounded-xl border border-edge bg-ink/80 px-3.5 py-2 text-xs text-ivory placeholder:text-dusk focus:border-gold focus:outline-none"
                           />
                           {formErr && <p className="text-[11px] text-rhodo">{formErr}</p>}
@@ -310,7 +320,7 @@ export default function SpecimenModal({
                             type="submit"
                             className="inline-flex items-center gap-2 rounded-full bg-gold px-4 py-2 text-xs font-bold text-[#1a1206] hover:bg-goldbright"
                           >
-                            <Send className="h-3.5 w-3.5" /> Send Inquiry
+                            <Send className="flip-rtl h-3.5 w-3.5" /> {ui(lang, "sendInquiry")}
                           </button>
                         </form>
                       )}
@@ -325,13 +335,13 @@ export default function SpecimenModal({
 
                 <p className="mt-4 text-[15px] leading-relaxed text-mist">{mineral.story}</p>
 
-                <blockquote className="mt-5 rounded-2xl border-l-2 bg-surface/90 p-5" style={{ borderColor: accent }}>
+                <blockquote className="mt-5 rounded-2xl border-l-2 bg-surface/90 p-5 rtl:border-r-2 rtl:border-l-0" style={{ borderColor: accent }}>
                   <Quote className="mb-2 h-4 w-4" style={{ color: accent }} />
                   <p className="font-display text-base leading-relaxed text-ivory italic">
                     {mineral.curatorNote}
                   </p>
                   <footer className="mt-2.5 font-mono text-[10px] tracking-[0.2em] text-dusk uppercase">
-                    — Curator's note
+                    — {ui(lang, "curatorsNote")}
                   </footer>
                 </blockquote>
 
@@ -346,23 +356,23 @@ export default function SpecimenModal({
                     )}
                   >
                     <Heart className={cn("h-4 w-4", isSaved && "fill-current")} />
-                    {isSaved ? "Saved" : "Save specimen"}
+                    {isSaved ? ui(lang, "savedWord") : ui(lang, "saveSpecimen")}
                   </button>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => step(-1)}
                       className="flex h-11 w-11 items-center justify-center rounded-full border border-edge bg-surface text-ivory transition-colors hover:border-amethyst hover:text-orchid"
-                      aria-label="Previous specimen"
+                      aria-label={ui(lang, "prevSpecimen")}
                     >
-                      <ChevronLeft className="h-5 w-5" />
+                      <ChevronLeft className="flip-rtl h-5 w-5" />
                     </button>
                     <button
                       onClick={() => step(1)}
                       className="flex h-11 items-center gap-1.5 rounded-full bg-gold px-5 text-sm font-bold text-[#1a1206] transition-colors hover:bg-goldbright"
-                      aria-label={tour ? "Next stop" : "Next specimen"}
+                      aria-label={tour ? ui(lang, "nextStop") : ui(lang, "nextSpecimen")}
                     >
-                      {tour ? "Next stop" : "Next"}
-                      <ChevronRight className="h-4 w-4" />
+                      {tour ? ui(lang, "nextStop") : ui(lang, "nextWord")}
+                      <ChevronRight className="flip-rtl h-4 w-4" />
                     </button>
                   </div>
                 </div>

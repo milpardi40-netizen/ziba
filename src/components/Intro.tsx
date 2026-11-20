@@ -6,6 +6,17 @@ export default function Intro() {
   const { config } = useCms();
   const s = config.intro;
 
+  // Consultation banner button: "#/…" navigates the SPA, "#visit"
+  // style anchors smooth-scroll to a section on this page.
+  const goBanner = () => {
+    const href = (s.pubButtonHref || "#visit").trim();
+    if (href.startsWith("#/")) window.location.hash = href;
+    else
+      document
+        .getElementById(href.replace(/^#/, ""))
+        ?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <section id="exhibition" className="relative scroll-mt-24 overflow-x-clip py-24 sm:py-32">
       <div
@@ -15,16 +26,20 @@ export default function Intro() {
       <div className="mx-auto grid max-w-7xl gap-14 px-5 sm:px-8 lg:grid-cols-[5fr_6fr] lg:gap-20">
         {/* sticky quote */}
         <div className="lg:sticky lg:top-32 lg:self-start">
+          {(s.chapter.trim() || s.overline.trim()) && (
           <Reveal>
             <div className="flex items-center gap-3 font-mono text-[11px] tracking-[0.32em] text-malachite uppercase">
               <GemMark className="h-3 w-3" />
+              {s.chapter.trim() && (
               <span className="rounded-full border border-edge bg-surface/95 px-2.5 py-1 text-[9px] text-ivory">
                 {s.chapter}
               </span>
+              )}
               {s.overline}
               <span className="h-px w-16 bg-gradient-to-r from-malachite to-transparent" />
             </div>
           </Reveal>
+          )}
           <Reveal delay={0.1}>
             <blockquote className="mt-6 font-display text-4xl leading-[1.12] font-light text-ivory sm:text-5xl">
               {s.quotePrefix}
@@ -34,6 +49,7 @@ export default function Intro() {
               {s.quoteSuffix}
             </blockquote>
           </Reveal>
+          {s.showCurator && s.curatorName.trim() && (
           <Reveal delay={0.2}>
             <figcaption className="mt-8 flex items-center gap-4">
               <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/40 bg-gradient-to-br from-gold/25 to-rhodo/20 font-display text-lg text-goldbright">
@@ -47,16 +63,21 @@ export default function Intro() {
               </span>
             </figcaption>
           </Reveal>
+          )}
         </div>
 
         {/* copy + tiles */}
         <div>
+          {s.paragraph1.trim() && (
           <Reveal>
             <p className="text-lg leading-relaxed text-mist">{s.paragraph1}</p>
           </Reveal>
+          )}
+          {s.paragraph2.trim() && (
           <Reveal delay={0.1}>
             <p className="mt-6 leading-relaxed text-mist">{s.paragraph2}</p>
           </Reveal>
+          )}
           <div className="mt-10 grid grid-cols-2 gap-4">
             {s.tiles.map((t, i) => (
               <Reveal key={`${t.label}-${i}`} delay={0.08 * i}>
@@ -78,6 +99,7 @@ export default function Intro() {
       </div>
 
       {/* direct consultation banner */}
+      {s.showBanner && (
       <div className="mx-auto mt-20 max-w-7xl px-5 sm:px-8">
         <Reveal>
           <div
@@ -111,7 +133,7 @@ export default function Intro() {
                 </div>
               </div>
               <button
-                onClick={() => document.getElementById("visit")?.scrollIntoView({ behavior: "smooth" })}
+                onClick={goBanner}
                 className="group flex shrink-0 items-center gap-2 rounded-full border border-gold/60 px-6 py-3.5 text-sm font-bold text-goldbright transition-all hover:bg-gold hover:text-[#1a1206]"
               >
                 {s.pubButtonText}
@@ -121,6 +143,7 @@ export default function Intro() {
           </div>
         </Reveal>
       </div>
+      )}
     </section>
   );
 }

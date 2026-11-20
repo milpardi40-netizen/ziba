@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -18,19 +19,113 @@ import {
   type SiteConfig,
 } from "./defaults";
 import { PHOTOS, type SpecimenPhoto } from "./photography";
+import { applyOverlay, type Lang } from "./i18n";
+import { DEFAULT_AR } from "./arabic";
+import {
+  collectChangedLeaves,
+  collectUntranslatedLeaves,
+  setAtPath,
+  translateEnToAr,
+  type ChangedLeaf,
+} from "./autotranslate";
 
 const CMS_STORAGE_KEY = "lithos-cms-v2";
+const LANG_STORAGE_KEY = "vernajewel-lang";
+const AUTOSYNC_STORAGE_KEY = "vernajewel-autosync-ar";
+
+/** Above this many changed strings at once (bulk import / reset), the
+ *  automatic translator stands aside — the admin can run a manual sync. */
+const AUTO_SYNC_MAX_LEAVES = 40;
+
+export interface SyncState {
+  status: "idle" | "working" | "done" | "error";
+  /** Strings waiting to be translated. */
+  pending: number;
+  /** Strings translated in the last finished run. */
+  translated: number;
+  /** Last run copied English because no translator was reachable. */
+  fellBack: boolean;
+}
+
+/** Saved configs may predate newly added sections — splice any missing
+ *  default sections back in at their canonical position, preserving the
+ *  admin's chosen order & visibility for everything already saved. */
+function mergeSections(
+  saved: SiteConfig["sectionsOrder"] | undefined,
+  customIds: string[] = [],
+  deletedIds: string[] = []
+): SiteConfig["sectionsOrder"] {
+  if (!Array.isArray(saved) || saved.length === 0) return DEFAULT_CONFIG.sectionsOrder;
+  const known = new Set([
+    ...DEFAULT_CONFIG.sectionsOrder.map((s) => s.id),
+    ...customIds,
+  ]);
+  const deleted = new Set(deletedIds);
+  const merged = saved.filter((s) => s && known.has(s.id) && !deleted.has(s.id));
+  DEFAULT_CONFIG.sectionsOrder.forEach((def, i) => {
+    if (deleted.has(def.id)) return; // admin deleted it on purpose — keep it gone
+    if (merged.some((s) => s.id === def.id)) return;
+    // Insert after the nearest preceding default section that is present.
+    let insertAt = merged.length;
+    for (let j = i - 1; j >= 0; j--) {
+      const pos = merged.findIndex((s) => s.id === DEFAULT_CONFIG.sectionsOrder[j].id);
+      if (pos >= 0) {
+        insertAt = pos + 1;
+        break;
+      }
+      insertAt = 0;
+    }
+    merged.splice(insertAt, 0, { ...def });
+  });
+  return merged;
+}
 
 function mergeConfig(raw: Partial<SiteConfig> | null | undefined): SiteConfig {
   if (!raw || typeof raw !== "object") return DEFAULT_CONFIG;
   return {
-    brand: { ...DEFAULT_CONFIG.brand, ...raw.brand },
+    // Brand migration: configs saved before the Vernajewel identity still
+    // carry the template's old default name — upgrade exactly that value,
+    // while preserving any name the admin deliberately customised.
+    brand: {
+      ...DEFAULT_CONFIG.brand,
+      ...raw.brand,
+      ...(raw.brand?.name === "LITHOS" ? { name: DEFAULT_CONFIG.brand.name } : {}),
+    },
     contact: { ...DEFAULT_CONFIG.contact, ...raw.contact },
-    sectionsOrder:
-      Array.isArray(raw.sectionsOrder) && raw.sectionsOrder.length > 0
-        ? raw.sectionsOrder
-        : DEFAULT_CONFIG.sectionsOrder,
-    hero: { ...DEFAULT_CONFIG.hero, ...raw.hero },
+    header: {
+      ...DEFAULT_CONFIG.header,
+      ...raw.header,
+      navItems: Array.isArray(raw.header?.navItems)
+        ? raw.header.navItems
+        : DEFAULT_CONFIG.header.navItems,
+    },
+    footer: {
+      ...DEFAULT_CONFIG.footer,
+      ...raw.footer,
+      columns: Array.isArray(raw.footer?.columns)
+        ? raw.footer.columns
+        : DEFAULT_CONFIG.footer.columns,
+      socials: Array.isArray(raw.footer?.socials)
+        ? raw.footer.socials
+        : DEFAULT_CONFIG.footer.socials,
+    },
+    sectionsOrder: mergeSections(
+      raw.sectionsOrder,
+      Array.isArray(raw.customSections)
+        ? raw.customSections.map((s) => s?.id).filter(Boolean)
+        : [],
+      Array.isArray(raw.deletedSectionIds) ? raw.deletedSectionIds : []
+    ),
+    hero: {
+      ...DEFAULT_CONFIG.hero,
+      ...raw.hero,
+      backdropPhotoIds: Array.isArray(raw.hero?.backdropPhotoIds)
+        ? raw.hero.backdropPhotoIds
+        : DEFAULT_CONFIG.hero.backdropPhotoIds,
+      slideSpecimenIds: Array.isArray(raw.hero?.slideSpecimenIds)
+        ? raw.hero.slideSpecimenIds
+        : DEFAULT_CONFIG.hero.slideSpecimenIds,
+    },
     intro: { ...DEFAULT_CONFIG.intro, ...raw.intro },
     highlights: { ...DEFAULT_CONFIG.highlights, ...raw.highlights },
     collection: { ...DEFAULT_CONFIG.collection, ...raw.collection },
@@ -59,14 +154,25 @@ function mergeConfig(raw: Partial<SiteConfig> | null | undefined): SiteConfig {
         ? raw.visit.infoCards
         : DEFAULT_CONFIG.visit.infoCards,
     },
+    categoriesSection: {
+      ...DEFAULT_CONFIG.categoriesSection,
+      ...raw.categoriesSection,
+    },
     categories: Array.isArray(raw.categories)
       ? raw.categories
       : DEFAULT_CONFIG.categories,
+    customSections: Array.isArray(raw.customSections)
+      ? raw.customSections
+      : DEFAULT_CONFIG.customSections,
+    deletedSectionIds: Array.isArray(raw.deletedSectionIds)
+      ? raw.deletedSectionIds
+      : [],
     media: { ...PHOTOS, ...(raw.media ?? {}) },
     minerals: Array.isArray(raw.minerals)
       ? raw.minerals
       : DEFAULT_CONFIG.minerals,
     inquiries: Array.isArray(raw.inquiries) ? raw.inquiries : [],
+    ar: raw.ar,
   };
 }
 
@@ -81,8 +187,23 @@ function loadConfig(): SiteConfig {
 }
 
 export interface CmsContextValue {
+  /** Effective config for rendering — in Arabic mode the base config
+   *  with the Arabic string overlay merged over it. */
   config: SiteConfig;
+  /** The base (primary-language) config as stored. The Admin Panel
+   *  edits this unless its Arabic editing mode is on. */
+  rawConfig: SiteConfig;
   setConfig: React.Dispatch<React.SetStateAction<SiteConfig>>;
+  /** Site display language. */
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+  /** Automatic English→Arabic sync: every admin add/edit in the base
+   *  language is machine-translated into the Arabic overlay. */
+  autoSyncAr: boolean;
+  setAutoSyncAr: (on: boolean) => void;
+  syncState: SyncState;
+  /** Translate every string that still renders as English in Arabic. */
+  syncArabicNow: () => void;
   getPhoto: (photoId?: string) => SpecimenPhoto;
   getCategoryColor: (categoryName: string) => string;
   getMineralById: (id: string) => MineralItem | undefined;
@@ -130,6 +251,28 @@ const CmsContext = createContext<CmsContextValue | null>(null);
 
 export function CmsProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SiteConfig>(loadConfig);
+  const [lang, setLangState] = useState<Lang>(() => {
+    try {
+      return localStorage.getItem(LANG_STORAGE_KEY) === "ar" ? "ar" : "en";
+    } catch {
+      return "en";
+    }
+  });
+
+  const setLang = useCallback((next: Lang) => {
+    setLangState(next);
+    try {
+      localStorage.setItem(LANG_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Reflect the language on the document: Arabic runs fully RTL.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  }, [lang]);
 
   useEffect(() => {
     try {
@@ -138,6 +281,113 @@ export function CmsProvider({ children }: { children: ReactNode }) {
       /* ignore quota errors in restricted environments */
     }
   }, [config]);
+
+  // Effective config: Arabic = shipped translations of the default
+  // content, then the admin's own Arabic edits, over the base config.
+  const effectiveConfig = useMemo<SiteConfig>(() => {
+    if (lang !== "ar") return config;
+    return applyOverlay(applyOverlay(config, DEFAULT_AR), config.ar);
+  }, [config, lang]);
+
+  /* ————— Automatic English → Arabic synchronisation —————
+     Structural admin changes (add / delete / reorder) already apply to
+     Arabic automatically: both languages render from this one base
+     config. This watcher covers the wording: whenever human-readable
+     strings are added or edited in the base language, the changed
+     leaves are machine-translated and written into `config.ar`, so
+     the Arabic section shows the same change in the same place.
+     Arabic-mode edits touch only `ar`, which the diff ignores, so the
+     watcher never overwrites the admin's own translations. */
+  const [autoSyncAr, setAutoSyncArState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(AUTOSYNC_STORAGE_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  });
+  const [syncState, setSyncState] = useState<SyncState>({
+    status: "idle",
+    pending: 0,
+    translated: 0,
+    fellBack: false,
+  });
+  const prevConfigRef = useRef<SiteConfig | null>(null);
+  const syncRunningRef = useRef(false);
+  const syncQueueRef = useRef<ChangedLeaf[]>([]);
+
+  const setAutoSyncAr = useCallback((on: boolean) => {
+    setAutoSyncArState(on);
+    try {
+      localStorage.setItem(AUTOSYNC_STORAGE_KEY, on ? "on" : "off");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const runSyncQueue = useCallback(async () => {
+    if (syncRunningRef.current) return;
+    syncRunningRef.current = true;
+    let translated = 0;
+    let fellBack = false;
+    try {
+      while (syncQueueRef.current.length > 0) {
+        const batch = syncQueueRef.current.splice(0, syncQueueRef.current.length);
+        setSyncState({
+          status: "working",
+          pending: batch.length,
+          translated,
+          fellBack,
+        });
+        const results: { path: ChangedLeaf["path"]; value: string }[] = [];
+        // Gentle concurrency so long specimen stories don't flood the API.
+        for (let i = 0; i < batch.length; i += 3) {
+          const slice = batch.slice(i, i + 3);
+          await Promise.all(
+            slice.map(async (leaf) => {
+              const ar = await translateEnToAr(leaf.text);
+              if (ar) translated += 1;
+              else fellBack = true;
+              results.push({ path: leaf.path, value: ar ?? leaf.text });
+            })
+          );
+        }
+        if (results.length > 0) {
+          setConfig((prev) => {
+            let ar: unknown = prev.ar;
+            for (const r of results) ar = setAtPath(ar, r.path, r.value);
+            return { ...prev, ar };
+          });
+        }
+      }
+      setSyncState({ status: "done", pending: 0, translated, fellBack });
+    } catch {
+      setSyncState({ status: "error", pending: 0, translated, fellBack });
+    } finally {
+      syncRunningRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    const prev = prevConfigRef.current;
+    prevConfigRef.current = config;
+    if (!prev || prev === config || !autoSyncAr) return;
+    const leaves = collectChangedLeaves(prev, config);
+    if (leaves.length === 0 || leaves.length > AUTO_SYNC_MAX_LEAVES) return;
+    syncQueueRef.current.push(...leaves);
+    void runSyncQueue();
+  }, [config, autoSyncAr, runSyncQueue]);
+
+  /** Manual full sync: translate everything still shown in English. */
+  const syncArabicNow = useCallback(() => {
+    const effectiveAr = applyOverlay(applyOverlay(config, DEFAULT_AR), config.ar);
+    const leaves = collectUntranslatedLeaves(config, effectiveAr);
+    if (leaves.length === 0) {
+      setSyncState({ status: "done", pending: 0, translated: 0, fellBack: false });
+      return;
+    }
+    syncQueueRef.current.push(...leaves);
+    void runSyncQueue();
+  }, [config, runSyncQueue]);
 
   const getPhoto = useCallback(
     (photoId?: string): SpecimenPhoto => {
@@ -431,8 +681,15 @@ export function CmsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CmsContextValue>(
     () => ({
-      config,
+      config: effectiveConfig,
+      rawConfig: config,
       setConfig,
+      lang,
+      setLang,
+      autoSyncAr,
+      setAutoSyncAr,
+      syncState,
+      syncArabicNow,
       getPhoto,
       getCategoryColor,
       getMineralById,
@@ -458,7 +715,14 @@ export function CmsProvider({ children }: { children: ReactNode }) {
       resetAll,
     }),
     [
+      effectiveConfig,
       config,
+      lang,
+      setLang,
+      autoSyncAr,
+      setAutoSyncAr,
+      syncState,
+      syncArabicNow,
       getPhoto,
       getCategoryColor,
       getMineralById,

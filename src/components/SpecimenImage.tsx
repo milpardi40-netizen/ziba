@@ -2,6 +2,8 @@ import { useState, type CSSProperties } from 'react';
 import { ImageOff } from 'lucide-react';
 import type { SpecimenPhoto } from '../data/photography';
 import { cn } from '../utils/cn';
+import { useCms } from '../data/store';
+import { ui } from '../data/i18n';
 
 type ImageVariant = 'card' | 'editorial' | 'compact' | 'feature' | 'hero' | 'detail' | 'stage';
 
@@ -59,11 +61,12 @@ export default function SpecimenImage({
 }
 
 export function PhotoCredit({ photo, className }: { photo: SpecimenPhoto; className?: string }) {
+  const { lang } = useCms();
   const hasExternalSource = photo.sourceUrl?.startsWith('http');
   const hasLicenseUrl = photo.licenseUrl?.startsWith('http');
   return (
     <span className={cn('block text-[10px] leading-relaxed text-dusk', className)}>
-      Photo: {photo.author || 'Gallery Archive'}
+      {ui(lang, 'photoBy')} {photo.author || (lang === 'ar' ? 'أرشيف المعرض' : 'Gallery Archive')}
       {hasExternalSource && (
         <>
           {' / '}

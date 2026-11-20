@@ -185,11 +185,37 @@ check("tour advances", await page.getByText("Guided tour · stop 2 of 10").isVis
 await page.getByRole("button", { name: "Close specimen file" }).click();
 await page.waitForTimeout(400);
 
-// ——— Nav anchor + active state ———
-await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Glow Room" }).click();
+// ——— Nav dedicated pages ———
+await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Glow Room" }).click();
 await page.waitForTimeout(1400);
-const glowTop = await page.evaluate(() => Math.abs(document.getElementById("glow").getBoundingClientRect().top));
-check("nav anchor lands near section", glowTop < 200, `offset=${Math.round(glowTop)}px`);
+check(
+  "nav button opens its dedicated page",
+  (await page.evaluate(() => location.hash)) === "#/glow-room" &&
+    (await page.getByText("awaken in the dark").first().isVisible()),
+  await page.evaluate(() => location.hash)
+);
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForTimeout(1200);
+
+// ——— Floating contact dock + instant scroll ———
+await page.getByRole("button", { name: /Contact the site admin/ }).click();
+await page.waitForTimeout(600);
+check("contact dock opens admin channels", await page.getByRole("menuitem", { name: /WhatsApp/ }).isVisible());
+check("contact dock offers Telegram", await page.getByRole("menuitem", { name: /Telegram/ }).isVisible());
+check("contact dock offers email", await page.getByRole("menuitem", { name: /Email/ }).isVisible());
+check("contact dock offers call", await page.getByRole("menuitem", { name: /Call the desk/ }).isVisible());
+await page.keyboard.press("Escape");
+await page.getByRole("button", { name: "Scroll to the bottom of the page" }).click();
+await page.waitForTimeout(1600);
+const nearBottom = await page.evaluate(() => {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  return max - window.scrollY < 400;
+});
+check("one-tap scroll reaches the bottom", nearBottom);
+await page.getByRole("button", { name: "Scroll to the top of the page" }).click();
+await page.waitForTimeout(1600);
+check("one-tap scroll returns to the top", (await page.evaluate(() => window.scrollY)) < 400);
+await page.screenshot({ path: "shots/10b-floating-dock.png" });
 
 // ——— Mobile ———
 const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -203,7 +229,7 @@ await mob.getByRole("button", { name: "Open menu" }).click();
 await mob.waitForTimeout(700);
 await mob.screenshot({ path: "shots/12-mobile-menu.png" });
 check("mobile menu opens", await mob.getByRole("navigation", { name: "Mobile" }).isVisible());
-await mob.getByRole("navigation", { name: "Mobile" }).getByRole("button", { name: "Collection" }).click();
+await mob.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: /Collection/ }).click();
 await mob.waitForTimeout(1500);
 await mob.screenshot({ path: "shots/13-mobile-collection.png" });
 check("mobile menu navigates & closes", (await mob.getByRole("navigation", { name: "Mobile" }).count()) === 0);
@@ -213,6 +239,8 @@ await mob.screenshot({ path: "shots/14-mobile-modal.png" });
 check("mobile modal opens", await mob.getByRole("dialog").isVisible());
 await mob.getByRole("button", { name: "Close specimen file" }).click();
 await mob.waitForTimeout(400);
+await mob.evaluate(() => { location.hash = "#/"; });
+await mob.waitForTimeout(1500);
 const mobGlow = mob.locator("#glow");
 await mobGlow.scrollIntoViewIfNeeded();
 await mob.waitForTimeout(800);
@@ -253,6 +281,14 @@ await page.getByRole("button", { name: "Save Specimen" }).click();
 await page.waitForTimeout(400);
 check("new specimen added in admin", await adminDialog.getByText("Emerald Matrix").isVisible());
 
+// Create a fully custom section (0–100 section builder)
+await adminDialog.getByRole("button", { name: "Sections", exact: true }).click();
+await page.waitForTimeout(300);
+await adminDialog.getByPlaceholder("New section name…").fill("Smoke Custom Room");
+await adminDialog.getByRole("button", { name: "Create" }).click();
+await page.waitForTimeout(500);
+check("custom section builder opens its editor", await adminDialog.getByText("Edit Custom Section").isVisible());
+
 // Close admin and verify live site updated
 await page.getByRole("button", { name: "Back to Site" }).click();
 await page.waitForTimeout(500);
@@ -260,6 +296,7 @@ await page.locator("#collection").scrollIntoViewIfNeeded();
 await page.waitForTimeout(600);
 check("new category visible in collection filters", await page.locator("#collection").getByRole("button", { name: "Rare Silicates" }).isVisible());
 check("new specimen visible in collection grid", await page.locator("#collection").getByText("Emerald Matrix").isVisible());
+check("custom section renders on the home page", await page.getByText("Smoke Custom Room").first().isVisible());
 
 console.log(results.join("\n"));
 console.log("\nRUNTIME ERRORS: " + (errors.length ? "\n" + errors.join("\n") : "none"));
