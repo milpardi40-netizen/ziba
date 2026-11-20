@@ -1,0 +1,415 @@
+@import "tailwindcss";
+
+@theme {
+  /* Verdigris & Brass — deep petrol gallery walls, warm brass light */
+  --color-ink: #0e1d21;
+  --color-abyss: #13272c;
+  --color-surface: #1b363c;
+  --color-raised: #23454c;
+  --color-edge: #3d656c;
+  --color-plate: #0b171a;
+  --color-amethyst: #b48cf2;
+  --color-orchid: #d7bdf7;
+  --color-gold: #e6b45a;
+  --color-goldbright: #f6d58f;
+  --color-malachite: #4fd9a6;
+  --color-azurite: #7fa9ef;
+  --color-rhodo: #f27d9e;
+  --color-aqua: #8fe4df;
+  --color-ivory: #f7f2e7;
+  --color-mist: #d3ddd9;
+  --color-dusk: #93aaa7;
+
+  --font-display: "Instrument Serif", "Times New Roman", serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-ink);
+  /* Removed background-attachment:fixed — causes full repaint on every scroll */
+  background-image: linear-gradient(180deg, #163139 0%, #102329 45%, #0e1d21 100%);
+  color: var(--color-ivory);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+.font-display {
+  letter-spacing: -0.018em;
+}
+
+/* A fixed media budget keeps complete specimens smaller than their captions. */
+.specimen-image {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 86%, color-mix(in srgb, var(--specimen-accent) 10%, transparent), transparent 68%),
+    linear-gradient(155deg, #203d44, #162e34);
+}
+.specimen-image--card { height: 168px; }
+.specimen-image--editorial { height: 184px; }
+.specimen-image--compact { height: 144px; }
+.specimen-image--feature { height: clamp(240px, 26vw, 340px); }
+.specimen-image--hero,
+.specimen-image--detail,
+.specimen-image--stage { height: 100%; }
+.specimen-image__subject {
+  position: absolute;
+  inset: 12px 36px 20px;
+  display: grid;
+  place-items: center;
+}
+.specimen-image--editorial .specimen-image__subject { inset: 18px 48px 22px; }
+.specimen-image--compact .specimen-image__subject { inset: 14px 48px 20px; }
+.specimen-image--feature .specimen-image__subject { inset: 32px 56px 38px; }
+.specimen-image--stage .specimen-image__subject { inset: 46px 48px 56px; }
+.specimen-image--hero .specimen-image__subject { inset: 60px 48px 164px; }
+.specimen-image--detail .specimen-image__subject { inset: 90px 36px 110px; }
+.specimen-image__photo {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 12px 11px rgb(4 12 14 / 32%));
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1), filter 700ms ease;
+}
+.specimen-image--detail .specimen-image__photo {
+  max-width: min(100%, var(--specimen-width));
+  max-height: min(100%, var(--specimen-height));
+}
+.specimen-image__shadow {
+  position: absolute;
+  left: 27%;
+  right: 27%;
+  bottom: 10px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgb(4 12 14 / 30%);
+  filter: blur(10px);
+}
+.specimen-image--hero .specimen-image__shadow { bottom: 156px; }
+.specimen-image--detail .specimen-image__shadow { bottom: 100px; }
+.group:hover .specimen-image__photo,
+.group:focus-visible .specimen-image__photo {
+  transform: translateY(-3px) scale(1.035);
+}
+@media (max-width: 639px) {
+  .specimen-image--card { height: 176px; }
+  .specimen-image--feature { height: 248px; }
+  .specimen-image--hero .specimen-image__subject { inset: 54px 36px 140px; }
+  .specimen-image--hero .specimen-image__shadow { bottom: 134px; }
+  .specimen-image--detail .specimen-image__subject { inset: 66px 44px 66px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .specimen-image__photo { transition: none; }
+  .group:hover .specimen-image__photo { transform: none; }
+}
+
+/* ————— Gallery wall wash & panel rim light ————— */
+main > section {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.008) 22%,
+    transparent 55%,
+    rgba(255, 255, 255, 0.018) 100%
+  );
+}
+main [class*="bg-surface"],
+main [class*="bg-raised"],
+main [class*="bg-abyss"] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.075);
+}
+main [class*="bg-surface"][class*="rounded-3xl"],
+main [class*="bg-raised"][class*="rounded-3xl"] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 18px 46px -28px rgba(4, 12, 14, 0.85);
+}
+
+/* ————— Architectural grid ————— */
+.grid-lines {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 88px 88px;
+  mask-image: radial-gradient(ellipse 75% 65% at 60% 40%, #000 10%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 60% 40%, #000 10%, transparent 85%);
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.rotate-slow {
+  animation: rotate-slow 22s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(79, 217, 166, 0.5); }
+  50% { opacity: 0.75; box-shadow: 0 0 0 7px rgba(79, 217, 166, 0); }
+}
+.pulse-dot {
+  animation: pulse-dot 2.4s ease-out infinite;
+}
+
+/* ————— Cinematic camera layers ————— */
+.cinema-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  background: radial-gradient(ellipse 84% 74% at 50% 44%, transparent 48%, rgba(6, 16, 19, 0.08) 82%, rgba(6, 16, 19, 0.18) 100%);
+}
+.cinema-grade {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: linear-gradient(180deg, rgba(230, 180, 90, 0.05), transparent 28%, transparent 72%, rgba(79, 217, 166, 0.035));
+}
+
+/* ————— Cursor-tracked spotlight on cards ————— */
+.spotlight-card {
+  position: relative;
+  isolation: isolate;
+}
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 245, 220, 0.16), transparent 68%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* ————— UV lamp atmosphere ————— */
+.scanlines {
+  background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0px, rgba(255, 255, 255, 0.06) 1px, transparent 1px, transparent 5px);
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+}
+.uv-beam {
+  background: linear-gradient(180deg, rgba(180, 140, 242, 0.42), rgba(141, 255, 112, 0.08) 55%, transparent 78%);
+  filter: blur(24px);
+  mix-blend-mode: screen;
+}
+@keyframes beam-sway {
+  0%, 100% { transform: skewX(-11deg) translateX(-3%); opacity: 0.65; }
+  50% { transform: skewX(-6deg) translateX(5%); opacity: 1; }
+}
+.beam-sway {
+  animation: beam-sway 7s ease-in-out infinite;
+}
+
+/* ————— Headline light sweep ————— */
+@keyframes sheen-sweep {
+  0% { transform: translateX(-160%) skewX(-18deg); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(420%) skewX(-18deg); opacity: 0; }
+}
+.sheen-sweep {
+  animation: sheen-sweep 2.2s cubic-bezier(0.4, 0, 0.2, 1) 0.9s both;
+}
+
+/* ————— Cinematic chapter divider ————— */
+.chapter-rule {
+  background: linear-gradient(90deg, currentColor, transparent);
+  height: 1px;
+  transform-origin: left;
+}
+.chapter-rule::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 5px;
+  margin-top: -2px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+::selection {
+  background: var(--color-gold);
+  color: #1a1206;
+}
+
+/* ————— Scrollbars in the museum's own language ————— */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #5f8a90 #13272c;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #13272c;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #6f9ea4, #3d656c);
+  border-radius: 8px;
+  border: 2px solid #13272c;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #e6b45a, #b48cf2);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ————— Film grain over everything — static, no animation ————— */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ————— Marquee ————— */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 36s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+
+/* ————— Card shine sweep ————— */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 244, 214, 0.14) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.shine:hover::after {
+  transform: translateX(120%);
+}
+
+/* ————— Hairline gradient rules ————— */
+.rule-gem {
+  background: linear-gradient(90deg, transparent, #e6b45a 30%, #4fd9a6 70%, transparent);
+  height: 1px;
+}
+
+/* ————— Glow-room lamp pulse ————— */
+@keyframes lamp-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.lamp-pulse {
+  animation: lamp-pulse 2.6s ease-in-out infinite;
+}
+
+/* ————— Underline flourish for nav ————— */
+.nav-link {
+  position: relative;
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -4px;
+  height: 1px;
+  background: linear-gradient(90deg, #e6b45a, #b48cf2);
+  transition: right 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-link:hover::after,
+.nav-link.active::after {
+  right: 0;
+}
+
+input[type="range"].gem-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #b48cf2, #4fd9a6);
+  outline: none;
+}
+input[type="range"].gem-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f7f2e7;
+  border: 3px solid #b48cf2;
+  box-shadow: 0 0 12px rgba(180, 140, 242, 0.8);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+input[type="range"].gem-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type="range"].gem-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f7f2e7;
+  border: 3px solid #b48cf2;
+  box-shadow: 0 0 12px rgba(180, 140, 242, 0.8);
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.shake {
+  animation: shake 0.4s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track,
+  .beam-sway,
+  .rotate-slow,
+  .pulse-dot,
+  .lamp-pulse {
+    animation: none !important;
+  }
+}
