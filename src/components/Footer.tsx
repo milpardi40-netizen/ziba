@@ -1,6 +1,8 @@
 import { ArrowUp, Phone, Sliders } from "lucide-react";
 import { useCms } from "../data/store";
-import { GemMark } from "./ui";
+import { catLabel } from "../data/i18n";
+import { categoryHref, HOME_HREF, navigateHome, pageHref, type NavPageId } from "../router";
+import { LogoLockup } from "./Logo";
 import PhotographyCredits from "./PhotographyCredits";
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -28,39 +30,39 @@ function XIcon({ className }: { className?: string }) {
   );
 }
 
-const COLS = [
-  {
-    title: "Exhibition",
-    links: [
-      { label: "Masterwork Highlights", id: "highlights" },
-      { label: "The Specimen Vault", id: "collection" },
-      { label: "Photoluminescence Lab", id: "glow" },
-      { label: "Deep Time Chronology", id: "deeptime" },
-    ],
-  },
-  {
-    title: "Curatorial Journal",
-    links: [
-      { label: "All Dispatches", id: "stories" },
-      { label: "Laws of Crystalline Matter", id: "stories" },
-      { label: "Crystal Growth Physics", id: "stories" },
-      { label: "Pre-Terrestrial Iron", id: "stories" },
-    ],
-  },
-  {
-    title: "Private Salon",
-    links: [
-      { label: "Collector Concierge", id: "visit" },
-      { label: "Telephone & WhatsApp Desk", id: "visit" },
-      { label: "Request a Dossier", id: "visit" },
-      { label: "Curatorial Manifesto", id: "exhibition" },
-    ],
-  },
-];
+/** Social icon set — the admin picks one of these per social link. */
+const SOCIAL_ICONS = {
+  instagram: InstagramIcon,
+  youtube: YoutubeIcon,
+  x: XIcon,
+};
 
 export default function Footer({ onOpenAdmin }: { onOpenAdmin: () => void }) {
-  const { config } = useCms();
-  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  const { config, lang } = useCms();
+  const go = (id: string) => {
+    // Footer destinations now lead to the dedicated nav pages; only the
+    // manifesto (intro) still lives exclusively as a home-page section.
+    const pages: Record<string, NavPageId> = {
+      highlights: "highlights",
+      categories: "categories",
+      collection: "collection",
+      glow: "glow",
+      deeptime: "deeptime",
+      stories: "stories",
+      visit: "visit",
+    };
+    if (pages[id]) {
+      window.location.hash = pageHref(pages[id]).slice(1);
+    } else if (document.getElementById(id) && !window.location.hash.startsWith("#/")) {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigateHome(id);
+    }
+  };
+  const goHome = () => {
+    if (window.location.hash.startsWith("#/")) navigateHome();
+    else window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <footer className="relative overflow-hidden border-t border-edge/70 bg-abyss">
@@ -71,17 +73,18 @@ export default function Footer({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       <div className="relative mx-auto max-w-7xl px-5 pt-16 pb-10 sm:px-8">
         <div className="grid gap-12 lg:grid-cols-[5fr_7fr]">
           <div>
-            <div className="flex items-center gap-3">
-              <GemMark className="h-9 w-9 text-amethyst" />
-              <div>
-                <div className="font-display text-2xl tracking-[0.18em] text-ivory">
-                  {config.brand.name}
-                </div>
-                <div className="font-mono text-[9px] tracking-[0.3em] text-dusk uppercase">
-                  {config.brand.subtitle}
-                </div>
-              </div>
-            </div>
+            {/* Main brand lockup — the house gold on a deep verdigris
+                jewellery-card panel, the way the house signs its boxes. */}
+            <a
+              href={HOME_HREF}
+              className="group block max-w-[240px] rounded-[22px] bg-gradient-to-b from-[#16323a] to-[#0b171a] p-5 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)] ring-1 ring-gold/25 transition-transform duration-300 hover:-translate-y-0.5"
+              aria-label={`${config.brand.name} — home`}
+            >
+              <LogoLockup className="h-auto w-full transition-transform duration-500 group-hover:scale-[1.02]" />
+              <span className="mt-3 block text-center font-mono text-[7.5px] tracking-[0.3em] text-gold/70 uppercase">
+                {config.brand.subtitle}
+              </span>
+            </a>
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-mist">
               {config.brand.footerTagline}
             </p>
@@ -92,41 +95,75 @@ export default function Footer({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               </a>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              {[
-                { icon: InstagramIcon, label: "Instagram", href: "https://www.instagram.com" },
-                { icon: YoutubeIcon, label: "YouTube", href: "https://www.youtube.com" },
-                { icon: XIcon, label: "X (Twitter)", href: "https://www.x.com" },
-              ].map((s) => (
-                <a
-                  key={s.label}
-                  href={s.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={s.label}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-edge bg-surface/95 text-mist transition-all hover:border-gold/60 hover:text-goldbright"
+              {config.footer.showSocials &&
+                config.footer.socials.map((s) => {
+                  const Icon = SOCIAL_ICONS[s.icon] ?? InstagramIcon;
+                  return (
+                    <a
+                      key={s.id}
+                      href={s.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={s.label}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-edge bg-surface/95 text-mist transition-all hover:border-gold/60 hover:text-goldbright"
+                    >
+                      <Icon className="h-4 w-4" />
+                    </a>
+                  );
+                })}
+              {config.footer.showAdminButton && (
+                <button
+                  onClick={onOpenAdmin}
+                  aria-label="Open Admin Panel"
+                  title="Owner access — also available with Ctrl/⌘ + Shift + A"
+                  className="flex items-center gap-2 rounded-full border border-edge bg-surface/95 px-4 py-2 text-xs font-semibold text-mist transition-all hover:border-gold/60 hover:text-goldbright"
                 >
-                  <s.icon className="h-4 w-4" />
-                </a>
-              ))}
-              <button
-                onClick={onOpenAdmin}
-                className="flex items-center gap-2 rounded-full border border-edge bg-surface/95 px-4 py-2 text-xs font-semibold text-mist transition-all hover:border-gold/60 hover:text-goldbright"
-              >
-                <Sliders className="h-3.5 w-3.5 text-gold" />
-                Admin Panel
-              </button>
+                  <Sliders className="h-3.5 w-3.5 text-gold" />
+                  {config.footer.adminButtonLabel}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-            {COLS.map((col) => (
-              <nav key={col.title} aria-label={col.title}>
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-2 xl:grid-cols-4">
+            <nav aria-label={config.footer.cabinetsTitle}>
+              <h4 className="font-mono text-[10px] tracking-[0.3em] text-gold uppercase">
+                {config.footer.cabinetsTitle}
+              </h4>
+              <ul className="mt-4 space-y-2.5">
+                {config.categories.map((c) => (
+                  <li key={c.id}>
+                    <a
+                      href={categoryHref(c.name)}
+                      className="group flex items-center gap-2 text-sm text-mist transition-colors hover:text-goldbright"
+                    >
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: c.color }}
+                        aria-hidden
+                      />
+                      {catLabel(c.name, lang)}
+                    </a>
+                  </li>
+                ))}
+                <li>
+                  <a
+                    href={HOME_HREF}
+                    className="text-sm font-semibold text-mist transition-colors hover:text-goldbright"
+                  >
+                    {config.footer.exhibitionHomeLabel}
+                  </a>
+                </li>
+              </ul>
+            </nav>
+            {config.footer.columns.map((col) => (
+              <nav key={col.id} aria-label={col.title}>
                 <h4 className="font-mono text-[10px] tracking-[0.3em] text-gold uppercase">{col.title}</h4>
                 <ul className="mt-4 space-y-2.5">
-                  {col.links.map((l) => (
-                    <li key={l.label}>
+                  {col.links.map((l, li) => (
+                    <li key={`${l.label}-${li}`}>
                       <button
-                        onClick={() => go(l.id)}
+                        onClick={() => go(l.targetId)}
                         className="text-sm text-mist transition-colors hover:text-goldbright"
                       >
                         {l.label}
@@ -146,10 +183,10 @@ export default function Footer({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             {config.brand.copyrightText}
           </p>
           <button
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={goHome}
             className="group flex items-center gap-2 rounded-full border border-edge px-5 py-2.5 text-xs font-bold text-mist transition-all hover:border-amethyst hover:text-orchid"
           >
-            Back to the surface
+            {config.footer.backToTopLabel}
             <ArrowUp className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5" />
           </button>
         </div>

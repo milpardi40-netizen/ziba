@@ -1,6 +1,7 @@
 import { ArrowRight, MapPin } from "lucide-react";
 import { type MineralItem } from "../data/defaults";
 import { useCms } from "../data/store";
+import { catLabel, ui } from "../data/i18n";
 import { cn } from "../utils/cn";
 import { RarityGems, Reveal, SectionHeading } from "./ui";
 import SpecimenImage from "./SpecimenImage";
@@ -14,7 +15,7 @@ function HighlightRow({
   flip: boolean;
   onOpen: (id: string) => void;
 }) {
-  const { getPhoto, getCategoryColor } = useCms();
+  const { getPhoto, getCategoryColor, lang } = useCms();
   const h = mineral.highlight!;
   const accent = mineral.accent;
   const photo = getPhoto(mineral.photoId);
@@ -25,14 +26,14 @@ function HighlightRow({
       <Reveal className={cn(flip && "lg:order-2")} y={40}>
         <button
           onClick={() => onOpen(mineral.id)}
-          className="shine spotlight-card group relative block w-full overflow-hidden rounded-3xl border border-edge text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          className="shine spotlight-card group relative block w-full overflow-hidden rounded-3xl border border-edge text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           onMouseMove={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
             e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
           }}
           style={{ boxShadow: `0 30px 80px -30px ${accent}44` }}
-          aria-label={`Open specimen file for ${mineral.name}`}
+          aria-label={`${ui(lang, "openSpecimenFile")} — ${mineral.name}`}
         >
           <SpecimenImage photo={photo} accent={accent} variant="feature" />
           <div className="flex items-center justify-between gap-4 border-t border-edge/40 bg-abyss px-5 py-4">
@@ -43,7 +44,7 @@ function HighlightRow({
               <RarityGems value={mineral.rarity} accent={accent} />
             </div>
             <span className="flex items-center gap-2 text-xs font-semibold text-mist">
-              View specimen
+              {ui(lang, "viewSpecimen")}
               <ArrowRight className="h-3.5 w-3.5 -rotate-45 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
             </span>
           </div>
@@ -85,7 +86,7 @@ function HighlightRow({
               className="rounded-full border px-3.5 py-1.5 text-xs font-semibold"
               style={{ borderColor: `${catColor}44`, color: catColor }}
             >
-              {mineral.category}
+              {catLabel(mineral.category, lang)}
             </span>
           </div>
         </Reveal>
@@ -95,8 +96,8 @@ function HighlightRow({
             className="group mt-8 inline-flex items-center gap-2 text-sm font-bold tracking-wide transition-colors"
             style={{ color: accent }}
           >
-            Open specimen file
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1.5" />
+            {ui(lang, "openSpecimenFile")}
+            <ArrowRight className="flip-rtl h-4 w-4 transition-transform group-hover:translate-x-1.5 rtl:group-hover:-translate-x-1.5" />
           </button>
         </Reveal>
       </div>

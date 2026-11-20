@@ -22,7 +22,7 @@ const ICON_MAP = {
 };
 
 export default function Visit({ onStartTour }: { onStartTour: () => void }) {
-  const { config, getPhoto, submitInquiry } = useCms();
+  const { config, getPhoto, submitInquiry, lang } = useCms();
   const s = config.visit;
   const c = config.contact;
 
@@ -37,14 +37,14 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
     e.preventDefault();
     if (!contact.trim() || contact.trim().length < 5) {
       setState("error");
-      setErrMsg("Please enter a valid phone number, WhatsApp, or email address.");
+      setErrMsg(s.errorText);
       return;
     }
     const chosen = config.minerals.find((m) => m.id === specimenId);
     submitInquiry({
-      name: name.trim() || "Collector Inquiry",
+      name: name.trim() || s.defaultInquiryName,
       contact: contact.trim(),
-      message: message.trim() || "Please contact me regarding the mineral collection.",
+      message: message.trim() || s.defaultInquiryMessage,
       specimenId: chosen?.id,
       specimenName: chosen?.name,
       specimenCatalog: chosen?.catalog,
@@ -54,7 +54,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
   };
 
   const whatsappHref = `https://wa.me/${c.whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
-    `Hello ${config.brand.name}, I would like to ask about your mineral collection.`
+    s.whatsappPrefill.replace(/\{brand\}/g, config.brand.name)
   )}`;
   const telegramHref = `https://t.me/${c.telegramHandle.replace(/^@/, "")}`;
 
@@ -149,7 +149,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                   className="inline-flex items-center gap-2.5 rounded-full bg-gold px-6 py-3.5 text-sm font-bold text-[#1a1206] shadow-[0_0_28px_rgba(230,180,90,0.28)] transition-all hover:bg-goldbright"
                 >
                   <Phone className="h-4 w-4" />
-                  Call {c.phoneDisplay}
+                  {s.callLabel} {c.phoneDisplay}
                 </a>
                 <a
                   href={whatsappHref}
@@ -158,7 +158,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                   className="inline-flex items-center gap-2.5 rounded-full border border-malachite/60 bg-malachite/15 px-6 py-3.5 text-sm font-bold text-malachite transition-all hover:bg-malachite/25"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  WhatsApp Message
+                  {s.whatsappLabel}
                 </a>
                 <a
                   href={telegramHref}
@@ -167,7 +167,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                   className="inline-flex items-center gap-2.5 rounded-full border border-azurite/60 bg-azurite/15 px-6 py-3.5 text-sm font-bold text-azurite transition-all hover:bg-azurite/25"
                 >
                   <Send className="h-4 w-4" />
-                  Telegram
+                  {s.telegramLabel}
                 </a>
               </div>
             </Reveal>
@@ -228,10 +228,13 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                       <Check className="h-5 w-5" />
                     </span>
                     <div>
-                      <p className="text-sm font-bold text-malachite">Message received.</p>
+                      <p className="text-sm font-bold text-malachite">{s.successTitle}</p>
                       <p className="mt-1 text-xs leading-relaxed text-mist">
-                        Thank you{name.trim() ? `, ${name.trim()}` : ""}. We will reach back via{" "}
-                        <span className="font-semibold text-ivory">{contact.trim()}</span> shortly.
+                        {s.successText
+                          .replace(/\{name\}/g, name.trim() ? `, ${name.trim()}` : "")
+                          .split("{contact}")[0]}
+                        <span className="font-semibold text-ivory">{contact.trim()}</span>
+                        {s.successText.split("{contact}")[1] ?? ""}
                       </p>
                     </div>
                   </div>
@@ -245,7 +248,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                     }}
                     className="text-xs font-bold text-goldbright hover:underline"
                   >
-                    Send another message
+                    {s.sendAnotherText}
                   </button>
                 </div>
               ) : (
@@ -255,8 +258,8 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Your name"
-                      aria-label="Your name"
+                      placeholder={s.namePlaceholder}
+                      aria-label={lang === "ar" ? "اسمك" : "Your name"}
                       className="rounded-2xl border border-edge bg-abyss/90 px-4 py-3 text-sm text-ivory placeholder:text-dusk focus:border-gold focus:ring-2 focus:ring-gold/25 focus:outline-none"
                     />
                     <input
@@ -266,8 +269,8 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                         setContact(e.target.value);
                         if (state === "error") setState("idle");
                       }}
-                      placeholder="Phone, WhatsApp or Email *"
-                      aria-label="Phone or Email"
+                      placeholder={s.contactPlaceholder}
+                      aria-label={lang === "ar" ? "الهاتف أو البريد الإلكتروني" : "Phone or Email"}
                       aria-invalid={state === "error"}
                       className={cn(
                         "rounded-2xl border bg-abyss/90 px-4 py-3 text-sm text-ivory placeholder:text-dusk focus:ring-2 focus:outline-none",
@@ -280,10 +283,10 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                   <select
                     value={specimenId}
                     onChange={(e) => setSpecimenId(e.target.value)}
-                    aria-label="Specimen of interest"
+                    aria-label={lang === "ar" ? "العينة موضع الاهتمام" : "Specimen of interest"}
                     className="w-full rounded-2xl border border-edge bg-abyss/90 px-4 py-3 text-sm text-mist focus:border-gold focus:outline-none [&>option]:bg-surface"
                   >
-                    <option value="">General collection inquiry (optional)</option>
+                    <option value="">{s.generalInquiryLabel}</option>
                     {config.minerals.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name} ({m.catalog})
@@ -294,8 +297,8 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                     rows={3}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Write your message or preferred time for a phone call…"
-                    aria-label="Inquiry message"
+                    placeholder={s.messagePlaceholder}
+                    aria-label={lang === "ar" ? "رسالة الاستفسار" : "Inquiry message"}
                     className="w-full rounded-2xl border border-edge bg-abyss/90 px-4 py-3 text-sm text-ivory placeholder:text-dusk focus:border-gold focus:ring-2 focus:ring-gold/25 focus:outline-none"
                   />
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
@@ -312,7 +315,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
                       type="submit"
                       className="group flex items-center justify-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-[#1a1206] transition-all hover:bg-goldbright"
                     >
-                      Send Message
+                      {s.sendButtonText}
                       <Send className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                     </button>
                   </div>

@@ -1,7 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, MapPin, MessageCircle, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { ArrowRight, Heart, MapPin, MessageCircle, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { type MineralItem } from "../data/defaults";
+import { categoryMetaFor } from "../data/arabic";
+import { catLabel, ui } from "../data/i18n";
+import { categoryHref } from "../router";
 import { useCms } from "../data/store";
 import { cn } from "../utils/cn";
 import { MohsBar, RarityGems, Reveal, SectionHeading } from "./ui";
@@ -9,14 +12,7 @@ import SpecimenImage from "./SpecimenImage";
 
 type SortKey = "name" | "hard-asc" | "hard-desc" | "rarity";
 
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: "name", label: "Name · A–Z" },
-  { key: "rarity", label: "Rarest first" },
-  { key: "hard-desc", label: "Hardest first" },
-  { key: "hard-asc", label: "Softest first" },
-];
-
-function SpecimenCard({
+export function SpecimenCard({
   mineral,
   saved,
   onToggleSave,
@@ -27,7 +23,7 @@ function SpecimenCard({
   onToggleSave: (id: string) => void;
   onOpen: (id: string) => void;
 }) {
-  const { getPhoto, getCategoryColor } = useCms();
+  const { config, getPhoto, getCategoryColor, lang } = useCms();
   const accent = mineral.accent;
   const catColor = getCategoryColor(mineral.category);
   const photo = getPhoto(mineral.photoId);
@@ -61,7 +57,7 @@ function SpecimenCard({
         </span>
         <button
           onClick={() => onToggleSave(mineral.id)}
-          aria-label={saved ? `Remove ${mineral.name} from saved` : `Save ${mineral.name}`}
+          aria-label={saved ? `${ui(lang, "savedWord")} — ${mineral.name}` : `${ui(lang, "saveSpecimen")} — ${mineral.name}`}
           aria-pressed={saved}
           className={cn(
             "relative z-10 flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 after:absolute after:-inset-0.5 active:scale-90",
@@ -74,8 +70,8 @@ function SpecimenCard({
 
       <button
         onClick={() => onOpen(mineral.id)}
-        className="relative block w-full border-b border-edge/35 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
-        aria-label={`Open specimen file for ${mineral.name}`}
+        className="relative block w-full border-b border-edge/35 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
+        aria-label={`${ui(lang, "openSpecimenFile")} — ${mineral.name}`}
       >
         <SpecimenImage photo={photo} accent={accent} />
       </button>
@@ -86,28 +82,28 @@ function SpecimenCard({
             className="rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.18em] uppercase"
             style={{ borderColor: `${catColor}44`, color: catColor }}
           >
-            {mineral.category}
+            {catLabel(mineral.category, lang)}
           </span>
           <RarityGems value={mineral.rarity} accent={accent} />
         </div>
-        <button onClick={() => onOpen(mineral.id)} className="mt-3 text-left">
+        <button onClick={() => onOpen(mineral.id)} className="mt-3 text-start">
           <h3 className="font-display text-2xl leading-tight font-light text-ivory transition-colors group-hover:text-goldbright">
             {mineral.name}
           </h3>
         </button>
         <div className="mt-1 flex items-center justify-between gap-2">
           <p className="font-mono text-xs text-dusk">{mineral.formula}</p>
-          {mineral.glow && <Sparkles className="h-3.5 w-3.5 text-malachite" aria-label="UV reactive" />}
+          {mineral.glow && <Sparkles className="h-3.5 w-3.5 text-malachite" aria-label={ui(lang, "uvReactive")} />}
         </div>
 
         <div className="mt-4 flex items-center justify-between border-t border-edge/60 pt-4">
           <div>
             <div className="mb-1.5 font-mono text-[9px] tracking-[0.2em] text-dusk uppercase">
-              Mohs {mineral.mohsLabel}
+              {ui(lang, "mohsWord")} {mineral.mohsLabel}
             </div>
             <MohsBar value={mineral.mohs} accent={accent} />
           </div>
-          <span className="flex max-w-[45%] items-start gap-1 text-right text-[11px] leading-snug text-mist">
+          <span className="flex max-w-[45%] items-start gap-1 text-end text-[11px] leading-snug text-mist">
             <MapPin className="mt-0.5 h-3 w-3 shrink-0" style={{ color: accent }} />
             {mineral.locality.split(",")[0]}
           </span>
@@ -118,7 +114,7 @@ function SpecimenCard({
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-edge/80 bg-abyss/60 py-2 text-[11px] font-bold tracking-wide text-mist transition-colors hover:border-gold/60 hover:text-goldbright"
         >
           <MessageCircle className="h-3.5 w-3.5 text-gold" />
-          Details & Direct Inquiry
+          {config.collection.cardButtonText}
         </button>
       </div>
     </motion.article>
@@ -134,8 +130,14 @@ export default function Collection({
   onToggleSave: (id: string) => void;
   onOpen: (id: string) => void;
 }) {
-  const { config } = useCms();
+  const { config, getCategoryColor, lang } = useCms();
   const s = config.collection;
+  const SORTS: { key: SortKey; label: string }[] = [
+    { key: "name", label: s.sortLabelName },
+    { key: "rarity", label: s.sortLabelRarity },
+    { key: "hard-desc", label: s.sortLabelHardest },
+    { key: "hard-asc", label: s.sortLabelSoftest },
+  ];
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [sort, setSort] = useState<SortKey>("name");
@@ -225,15 +227,15 @@ export default function Collection({
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search species, chemistry, provenance, or locality… try “Tsumeb”, “copper” or “Pakistan”"
+                    placeholder={s.searchPlaceholder}
                     className="w-full rounded-full border border-edge bg-abyss/90 py-3.5 pr-11 pl-11 text-sm text-ivory placeholder:text-dusk focus:border-amethyst focus:ring-2 focus:ring-amethyst/30 focus:outline-none"
-                    aria-label="Search specimens"
+                    aria-label={ui(lang, "browseSpecimens")}
                   />
                   {query && (
                     <button
                       onClick={() => setQuery("")}
                       className="absolute top-1/2 right-3.5 -translate-y-1/2 text-dusk hover:text-ivory"
-                      aria-label="Clear search"
+                      aria-label={ui(lang, "clearSearch")}
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -249,7 +251,7 @@ export default function Collection({
                       value={sort}
                       onChange={(e) => setSort(e.target.value as SortKey)}
                       className="cursor-pointer appearance-none bg-transparent pr-2 font-semibold text-mist focus:outline-none [&>option]:bg-surface"
-                      aria-label="Sort specimens"
+                      aria-label={ui(lang, "sortSpecimensAria")}
                     >
                       {SORTS.map((item) => (
                         <option key={item.key} value={item.key}>
@@ -272,7 +274,7 @@ export default function Collection({
                     )}
                   >
                     <Heart className={cn("h-4 w-4", savedOnly && "fill-current")} />
-                    Saved
+                    {s.savedLabel}
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 font-mono text-[10px]",
@@ -286,6 +288,7 @@ export default function Collection({
               </div>
             </div>
 
+            {s.showCategoryChips && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {[{ id: "all", name: "All", color: "#e6b45a" }, ...config.categories].map((c) => {
                 const isActive = category === c.name;
@@ -304,25 +307,58 @@ export default function Collection({
                         : { borderColor: "#3d656c", background: "rgba(14,29,33,0.6)" }
                     }
                   >
-                    {c.name}
+                    {c.name === "All" ? ui(lang, "allWord") : catLabel(c.name, lang)}
                   </button>
                 );
               })}
             </div>
+            )}
+
+            {category !== "All" && (
+              <a
+                href={categoryHref(category)}
+                className="group mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-edge/70 bg-abyss/70 px-5 py-4 transition-colors hover:border-gold/50"
+              >
+                <span className="flex items-center gap-3">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{
+                      background: getCategoryColor(category),
+                      boxShadow: `0 0 12px ${getCategoryColor(category)}`,
+                    }}
+                    aria-hidden
+                  />
+                  <span>
+                    <span className="block text-sm font-bold text-ivory">
+                      {ui(lang, "cabinetOwnPage", { name: catLabel(category, lang) })}
+                    </span>
+                    <span className="block text-xs text-dusk italic">
+                      {categoryMetaFor(category, lang).tagline}
+                    </span>
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 text-xs font-bold text-goldbright">
+                  {ui(lang, "enterCabinet")}
+                  <ArrowRight className="flip-rtl h-4 w-4 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1" />
+                </span>
+              </a>
+            )}
           </div>
         </Reveal>
 
         {/* result count */}
         <div className="mt-8 flex items-center justify-between">
           <p className="font-mono text-[11px] tracking-[0.22em] text-dusk uppercase" aria-live="polite">
-            Showing {results.length} of {config.minerals.length} specimens
+            {s.resultCountText
+              .replace(/\{shown\}/g, String(results.length))
+              .replace(/\{total\}/g, String(config.minerals.length))}
           </p>
           {activeFilters && (
             <button
               onClick={reset}
               className="flex items-center gap-1.5 text-xs font-bold text-gold hover:text-goldbright"
             >
-              <X className="h-3.5 w-3.5" /> Reset filters
+              <X className="h-3.5 w-3.5" /> {s.resetFiltersText}
             </button>
           )}
         </div>
@@ -350,18 +386,16 @@ export default function Collection({
           >
             <Search className="h-8 w-8 text-dusk" />
             <h3 className="mt-4 font-display text-2xl font-light text-ivory">
-              No specimens match that search
+              {s.emptyTitle}
             </h3>
             <p className="mt-2 max-w-sm text-sm text-mist">
-              {savedOnly && saved.size === 0
-                ? "You haven't saved any specimens yet — tap the heart on a card to build your private shortlist."
-                : "Try a broader term, or clear the filters to see the whole vault."}
+              {savedOnly && saved.size === 0 ? s.emptySavedText : s.emptyText}
             </p>
             <button
               onClick={reset}
               className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-bold text-[#1a1206] transition-colors hover:bg-goldbright"
             >
-              Show all specimens
+              {s.emptyButtonText}
             </button>
           </motion.div>
         )}

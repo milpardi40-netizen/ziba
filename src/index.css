@@ -413,3 +413,42 @@ input[type="range"].gem-range::-moz-range-thumb {
     animation: none !important;
   }
 }
+/* ————— Arabic / RTL ————— */
+html[dir="rtl"] {
+  --font-display: "Amiri", "Instrument Serif", "Times New Roman", serif;
+  --font-sans: "IBM Plex Sans Arabic", "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+html[dir="rtl"] .font-display {
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+html[dir="rtl"] .chapter-rule {
+  transform-origin: right;
+}
+/* Directional icons flip in RTL when marked. */
+html[dir="rtl"] .flip-rtl {
+  transform: scaleX(-1);
+}
+
+/* Beiruti (display) + Readex Pro (text) — the Arabic voice of the salon.
+   They replace the Latin stacks only in RTL; Latin/digit runs inside
+   Arabic text still fall back gracefully through the stack. */
+html[dir="rtl"] {
+  --font-display: "Beiruti", "Amiri", "Instrument Serif", serif;
+  --font-sans: "Readex Pro", "IBM Plex Sans Arabic", "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+html[dir="rtl"] .font-display {
+  letter-spacing: 0;
+  line-height: 1.4;
+  font-weight: 600;
+}
+/* Arabic script has no italics — never let the browser fake an oblique. */
+html[dir="rtl"] em,
+html[dir="rtl"] i,
+html[dir="rtl"] .italic {
+  font-style: normal;
+}
+/* Wide Latin tracking shatters Arabic letter-joining — tighten it in RTL. */
+html[dir="rtl"] [class*="tracking-"] {
+  letter-spacing: 0.01em !important;
+}

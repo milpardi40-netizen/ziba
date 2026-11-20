@@ -5,7 +5,7 @@ import { Reveal, SectionHeading } from "./ui";
 import SpecimenImage from "./SpecimenImage";
 
 export default function DeepTime() {
-  const { config, getPhoto } = useCms();
+  const { config, getPhoto, lang } = useCms();
   const s = config.deeptime;
   const trackRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
@@ -61,13 +61,13 @@ export default function DeepTime() {
           <Reveal delay={0.15}>
             <div className="flex items-center gap-3">
               <span className="mr-2 hidden items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-dusk uppercase sm:flex">
-                <Hourglass className="h-3.5 w-3.5 text-gold" /> Drag or scroll
+                <Hourglass className="h-3.5 w-3.5 text-gold" /> {s.dragHint}
               </span>
               <button
                 onClick={() => nudge(-1)}
                 disabled={!canPrev}
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-edge bg-surface text-ivory transition-all enabled:hover:border-gold enabled:hover:text-goldbright disabled:opacity-30"
-                aria-label="Earlier eras"
+                aria-label={lang === "ar" ? "الحقب الأقدم" : "Earlier eras"}
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
@@ -75,7 +75,7 @@ export default function DeepTime() {
                 onClick={() => nudge(1)}
                 disabled={!canNext}
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-edge bg-surface text-ivory transition-all enabled:hover:border-gold enabled:hover:text-goldbright disabled:opacity-30"
-                aria-label="Later eras"
+                aria-label={lang === "ar" ? "الحقب الأحدث" : "Later eras"}
               >
                 <ChevronRight className="h-5 w-5" />
               </button>

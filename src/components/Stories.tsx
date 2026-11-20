@@ -3,11 +3,13 @@ import { ArrowUpRight, Clock, Quote, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type ArticleItem } from "../data/defaults";
 import { useCms } from "../data/store";
+
 import { Reveal, SectionHeading } from "./ui";
 import SpecimenImage, { PhotoCredit } from "./SpecimenImage";
 
 function ArticleModal({ article, onClose }: { article: ArticleItem | null; onClose: () => void }) {
-  const { getPhoto } = useCms();
+  const { config, getPhoto, lang } = useCms();
+  const labels = config.stories;
 
   useEffect(() => {
     if (!article) return;
@@ -48,7 +50,7 @@ function ArticleModal({ article, onClose }: { article: ArticleItem | null; onClo
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full border border-ivory/15 bg-abyss/90 text-ivory backdrop-blur-md transition-colors hover:border-rhodo/60 hover:text-rhodo"
-                aria-label="Close article"
+                aria-label={lang === "ar" ? "إغلاق المقال" : "Close article"}
               >
                 <X className="h-4.5 w-4.5" />
               </button>
@@ -80,7 +82,7 @@ function ArticleModal({ article, onClose }: { article: ArticleItem | null; onClo
                   </span>
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-dusk">
-                  <Clock className="h-3.5 w-3.5" /> {article.minutes} min read
+                  <Clock className="h-3.5 w-3.5" /> {article.minutes} {labels.modalReadLabel}
                 </span>
               </div>
               <PhotoCredit photo={photo} className="mt-3" />
@@ -111,13 +113,13 @@ function ArticleModal({ article, onClose }: { article: ArticleItem | null; onClo
 
               <div className="mt-8 flex items-center justify-between border-t border-edge/60 pt-6">
                 <span className="font-mono text-[10px] tracking-[0.24em] text-dusk uppercase">
-                  From the field notes
+                  {labels.modalFooterNote}
                 </span>
                 <button
                   onClick={onClose}
                   className="rounded-full border border-edge px-5 py-2.5 text-xs font-bold text-mist transition-colors hover:border-gold/60 hover:text-goldbright"
                 >
-                  Back to the gallery
+                  {labels.modalBackLabel}
                 </button>
               </div>
             </div>
@@ -177,7 +179,7 @@ export default function Stories() {
                     {a.tag}
                   </span>
                   <span className="flex items-center gap-1.5 font-mono text-[10px] text-dusk">
-                    <Clock className="h-3 w-3" /> {a.minutes} min
+                    <Clock className="h-3 w-3" /> {a.minutes} {s.minutesSuffix}
                   </span>
                 </div>
                 <SpecimenImage photo={getPhoto(a.photoId)} accent={a.tagColor} variant="editorial" />

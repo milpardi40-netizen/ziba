@@ -1,22 +1,20 @@
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { useCms } from '../data/store';
+import { ui } from '../data/i18n';
 
 export default function PhotographyCredits() {
-  const { config } = useCms();
+  const { config, lang } = useCms();
   const photos = Object.values(config.media);
 
   return (
     <details id="photography-credits" className="group mt-10 border-t border-edge/50">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-sm font-semibold text-mist transition-colors hover:text-goldbright [&::-webkit-details-marker]:hidden">
-        Photography & sources
+        {ui(lang, "photoCreditsTitle")}
         <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
       <div className="pb-5">
         <p className="max-w-3xl text-xs leading-relaxed text-dusk">
-          Authentic reference photography, selected for each mineral species.
-          Backgrounds have been isolated and images resized for a consistent presentation.
-          Original specimen colors are preserved. Adapted photographs remain available under
-          their respective licenses.
+          {ui(lang, "photoCreditsNote")}
         </p>
         <ul className="mt-6 grid gap-x-10 sm:grid-cols-2">
           {photos.map((photo) => {
@@ -38,7 +36,7 @@ export default function PhotographyCredits() {
                       {photo.license}
                     </a>
                   ) : (
-                    <span className="text-[10px] text-orchid">{photo.license || 'Gallery Archive'}</span>
+                    <span className="text-[10px] text-orchid">{photo.license || (lang === 'ar' ? 'أرشيف المعرض' : 'Gallery Archive')}</span>
                   )}
                 </div>
                 <p className="mt-1 text-[11px] text-dusk">{photo.author}</p>
