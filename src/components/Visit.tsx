@@ -33,7 +33,7 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
   const [state, setState] = useState<"idle" | "error" | "done">("idle");
   const [errMsg, setErrMsg] = useState("");
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!contact.trim() || contact.trim().length < 5) {
       setState("error");
@@ -41,16 +41,21 @@ export default function Visit({ onStartTour }: { onStartTour: () => void }) {
       return;
     }
     const chosen = config.minerals.find((m) => m.id === specimenId);
-    submitInquiry({
-      name: name.trim() || s.defaultInquiryName,
-      contact: contact.trim(),
-      message: message.trim() || s.defaultInquiryMessage,
-      specimenId: chosen?.id,
-      specimenName: chosen?.name,
-      specimenCatalog: chosen?.catalog,
-    });
-    setState("done");
-    setErrMsg("");
+    try {
+      await submitInquiry({
+        name: name.trim() || s.defaultInquiryName,
+        contact: contact.trim(),
+        message: message.trim() || s.defaultInquiryMessage,
+        specimenId: chosen?.id,
+        specimenName: chosen?.name,
+        specimenCatalog: chosen?.catalog,
+      });
+      setState("done");
+      setErrMsg("");
+    } catch {
+      setState("error");
+      setErrMsg(lang === "ar" ? "تعذر إرسال الرسالة. حاول مرة أخرى." : "Message could not be sent. Please try again.");
+    }
   };
 
   const whatsappHref = `https://wa.me/${c.whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(

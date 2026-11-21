@@ -200,9 +200,11 @@ function PhotoPicker({
 export default function AdminPanel({
   open,
   onClose,
+  onLogout,
 }: {
   open: boolean;
   onClose: () => void;
+  onLogout?: () => void;
 }) {
   const {
     rawConfig,
@@ -947,6 +949,12 @@ export default function AdminPanel({
                 className="rounded-full border border-edge bg-surface px-3.5 py-2 text-xs font-bold text-mist hover:border-gold/60 hover:text-goldbright"
               >
                 {lang === "fa" ? "English UI" : "نمای فارسی"}
+              </button>
+              <button
+                onClick={onLogout}
+                className="rounded-full border border-edge bg-surface px-4 py-2 text-xs font-bold text-mist hover:border-red-400/60 hover:text-red-300"
+              >
+                {t("خروج مدیر", "Admin logout")}
               </button>
               <button
                 onClick={onClose}

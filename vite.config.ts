@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/ziba/",
+  base: process.env.VITE_BASE_PATH || "/ziba/",
   plugins: [react(), tailwindcss()],
   server: {
     host: "0.0.0.0",

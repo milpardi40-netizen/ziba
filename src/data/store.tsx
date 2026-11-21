@@ -29,8 +29,8 @@ import {
   type ChangedLeaf,
 } from "./autotranslate";
 
-const CMS_STORAGE_KEY = "lithos-cms-v2";
 const LANG_STORAGE_KEY = "vernajewel-lang";
+const CMS_STORAGE_KEY = "lithos-cms-v2"; // read once as a migration fallback only
 const AUTOSYNC_STORAGE_KEY = "vernajewel-autosync-ar";
 
 /** Above this many changed strings at once (bulk import / reset), the
@@ -187,6 +187,7 @@ function loadConfig(): SiteConfig {
 }
 
 export interface CmsContextValue {
+  adminAuthenticated: boolean;
   /** Effective config for rendering — in Arabic mode the base config
    *  with the Arabic string overlay merged over it. */
   config: SiteConfig;
@@ -238,7 +239,7 @@ export interface CmsContextValue {
   // Inquiries
   submitInquiry: (
     payload: Omit<BuyerInquiry, "id" | "createdAt" | "status">
-  ) => BuyerInquiry;
+  ) => Promise<BuyerInquiry>;
   toggleInquiryStatus: (id: string) => void;
   deleteInquiry: (id: string) => void;
 
@@ -251,6 +252,9 @@ const CmsContext = createContext<CmsContextValue | null>(null);
 
 export function CmsProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SiteConfig>(loadConfig);
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+  const [remoteReady, setRemoteReady] = useState(false);
+  const remoteReadyRef = useRef(false);
   const [lang, setLangState] = useState<Lang>(() => {
     try {
       return localStorage.getItem(LANG_STORAGE_KEY) === "ar" ? "ar" : "en";
@@ -275,12 +279,41 @@ export function CmsProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(CMS_STORAGE_KEY, JSON.stringify(config));
-    } catch {
-      /* ignore quota errors in restricted environments */
-    }
-  }, [config]);
+    let alive = true;
+    (async () => {
+      try {
+        const [authRes, siteRes] = await Promise.all([
+          fetch("/api/auth/session", { credentials: "include" }),
+          fetch("/api/site", { credentials: "include", cache: "no-store" }),
+        ]);
+        const auth = authRes.ok ? await authRes.json() : { authenticated: false };
+        const site = siteRes.ok ? await siteRes.json() : { config: null };
+        if (!alive) return;
+        const isAdmin = auth.authenticated === true;
+        setAdminAuthenticated(isAdmin);
+        if (site.config && typeof site.config === "object") setConfig(mergeConfig(site.config));
+        else if (isAdmin) {
+          await fetch("/api/site", {
+            method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ config: loadConfig() }),
+          });
+        }
+      } catch { /* retain the read-only built-in content while offline */ }
+      finally { if (alive) { remoteReadyRef.current = true; setRemoteReady(true); } }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!remoteReady || !adminAuthenticated) return;
+    const timer = window.setTimeout(() => {
+      fetch("/api/site", {
+        method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config }),
+      }).catch(() => undefined);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [config, remoteReady, adminAuthenticated]);
 
   // Effective config: Arabic = shipped translations of the default
   // content, then the admin's own Arabic edits, over the base config.
@@ -622,22 +655,17 @@ export function CmsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const submitInquiry = useCallback(
-    (payload: Omit<BuyerInquiry, "id" | "createdAt" | "status">) => {
-      const inquiry: BuyerInquiry = {
-        ...payload,
-        id: `inq-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        status: "new",
-      };
-      setConfig((prev) => ({
-        ...prev,
-        inquiries: [inquiry, ...prev.inquiries],
-      }));
-      return inquiry;
-    },
-    []
-  );
+  const submitInquiry = useCallback(async (
+    payload: Omit<BuyerInquiry, "id" | "createdAt" | "status">
+  ) => {
+    const res = await fetch("/api/inquiries", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("inquiry_submit_failed");
+    const body = await res.json();
+    return body.inquiry as BuyerInquiry;
+  }, []);
 
   const toggleInquiryStatus = useCallback((id: string) => {
     setConfig((prev) => ({
@@ -671,16 +699,12 @@ export function CmsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetAll = useCallback(() => {
-    try {
-      localStorage.removeItem(CMS_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
     setConfig(DEFAULT_CONFIG);
   }, []);
 
   const value = useMemo<CmsContextValue>(
     () => ({
+      adminAuthenticated,
       config: effectiveConfig,
       rawConfig: config,
       setConfig,
@@ -715,6 +739,7 @@ export function CmsProvider({ children }: { children: ReactNode }) {
       resetAll,
     }),
     [
+      adminAuthenticated,
       effectiveConfig,
       config,
       lang,

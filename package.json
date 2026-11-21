@@ -1,12 +1,13 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "ziba-gallery",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run build && node server/index.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "start": "node server/index.js",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "clsx": "2.1.1",
@@ -14,7 +15,9 @@
     "lucide-react": "^1.76.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "tailwind-merge": "3.4.0"
+    "tailwind-merge": "3.4.0",
+    "express": "^4.21.2",
+    "mysql2": "^3.14.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.17",

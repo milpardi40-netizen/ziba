@@ -30,7 +30,7 @@ const RouteNotFound = lazy(() =>
 
 // Modal overlays — loaded only when triggered
 const SpecimenModal = lazy(() => import("./components/SpecimenModal"));
-const AdminPanel    = lazy(() => import("./components/AdminPanel"));
+const AdminAccess   = lazy(() => import("./components/AdminAccess"));
 
 const SAVED_KEY = "lithos-saved-specimens";
 const DEFAULT_TITLE = "Vernajewel — Haute Mineralogie · Private Salon & Archive";
@@ -311,7 +311,7 @@ function GalleryShell() {
         />
       </Suspense>
       <Suspense fallback={null}>
-        <AdminPanel open={adminOpen} onClose={closeAdmin} />
+        <AdminAccess open={adminOpen} onClose={closeAdmin} />
       </Suspense>
     </div>
   );
