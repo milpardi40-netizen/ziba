@@ -40,6 +40,12 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Real backend (Supabase). Add these in:
+          # Repo → Settings → Secrets and variables → Actions.
+          # Absent secrets simply keep the site in local-only mode.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

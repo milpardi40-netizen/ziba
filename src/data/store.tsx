@@ -22,6 +22,19 @@ import { PHOTOS, type SpecimenPhoto } from "./photography";
 import { applyOverlay, type Lang } from "./i18n";
 import { DEFAULT_AR } from "./arabic";
 import {
+  backendEnabled,
+  deleteRemoteInquiry,
+  fetchRemoteConfig,
+  fetchRemoteInquiries,
+  insertRemoteInquiry,
+  saveRemoteConfig,
+  setRemoteInquiryStatus,
+  signInOwner,
+  signOutOwner,
+  supabase,
+  type Session,
+} from "./backend";
+import {
   collectChangedLeaves,
   collectUntranslatedLeaves,
   setAtPath,
@@ -245,6 +258,13 @@ export interface CmsContextValue {
   // Backup / Reset
   importJson: (jsonText: string) => { ok: boolean; error?: string };
   resetAll: () => void;
+
+  // Real backend (Supabase) — all false/null in local-only mode
+  backendEnabled: boolean;
+  /** Owner auth session; null when signed out or backend is off. */
+  session: Session | null;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signOut: () => Promise<void>;
 }
 
 const CmsContext = createContext<CmsContextValue | null>(null);
@@ -273,6 +293,108 @@ export function CmsProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
+
+  /* ————— Real backend (Supabase) —————
+     When configured, the published config lives in Postgres: the
+     signed-in owner's edits are debounce-saved server-side and every
+     visitor loads (and realtime-receives) the same content. Without
+     a backend the site stays in localStorage-only mode, untouched. */
+  const [session, setSession] = useState<Session | null>(null);
+  const sessionRef = useRef<Session | null>(null);
+  const remoteReadyRef = useRef(false);
+  const lastSavedHashRef = useRef<string>("");
+
+  const configHash = useCallback((c: SiteConfig) => {
+    try {
+      return JSON.stringify({ ...c, inquiries: [] });
+    } catch {
+      return "";
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    let cancelled = false;
+    (async () => {
+      const remote = await fetchRemoteConfig();
+      if (!cancelled && remote && typeof remote === "object") {
+        const merged = mergeConfig(remote as Partial<SiteConfig>);
+        // An empty/seed row ({}) must not wipe the local defaults.
+        if (Object.keys(remote as Record<string, unknown>).length > 0) {
+          lastSavedHashRef.current = configHash(merged);
+          setConfig(merged);
+        }
+      }
+      remoteReadyRef.current = true;
+    })();
+    client.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      sessionRef.current = data.session;
+      setSession(data.session);
+    });
+    const { data: sub } = client.auth.onAuthStateChange((_e, next) => {
+      sessionRef.current = next;
+      setSession(next);
+    });
+    // Visitors (not signed in) receive the owner's edits live.
+    const channel = client
+      .channel("site-config-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_config", filter: "id=eq.main" },
+        (payload) => {
+          if (sessionRef.current) return; // the editor already has it
+          const next = (payload.new as { config?: unknown })?.config;
+          if (next && typeof next === "object") {
+            setConfig(mergeConfig(next as Partial<SiteConfig>));
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+      if (supabase) void supabase.removeChannel(channel);
+    };
+  }, [configHash]);
+
+  // Debounce-save the owner's edits to the server.
+  useEffect(() => {
+    if (!supabase || !session || !remoteReadyRef.current) return;
+    const hash = configHash(config);
+    if (!hash || hash === lastSavedHashRef.current) return;
+    const timer = setTimeout(async () => {
+      const ok = await saveRemoteConfig(config);
+      if (ok) lastSavedHashRef.current = hash;
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [config, session, configHash]);
+
+  // Owner signed in → load the server-side buyer inbox.
+  useEffect(() => {
+    if (!supabase || !session) return;
+    let cancelled = false;
+    (async () => {
+      const remote = await fetchRemoteInquiries();
+      if (!cancelled && remote) {
+        setConfig((prev) => ({ ...prev, inquiries: remote }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const signIn = useCallback(
+    (email: string, password: string) => signInOwner(email, password),
+    []
+  );
+  const signOut = useCallback(async () => {
+    await signOutOwner();
+    sessionRef.current = null;
+    setSession(null);
+  }, []);
 
   useEffect(() => {
     try {
@@ -634,23 +756,35 @@ export function CmsProvider({ children }: { children: ReactNode }) {
         ...prev,
         inquiries: [inquiry, ...prev.inquiries],
       }));
+      // Real backend: store in Postgres + notify owner (Telegram/email).
+      void insertRemoteInquiry(payload);
       return inquiry;
     },
     []
   );
 
   const toggleInquiryStatus = useCallback((id: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      inquiries: prev.inquiries.map((inq) =>
-        inq.id === id
-          ? { ...inq, status: inq.status === "new" ? "replied" : "new" }
-          : inq
-      ),
-    }));
+    setConfig((prev) => {
+      const target = prev.inquiries.find((inq) => inq.id === id);
+      if (target) {
+        void setRemoteInquiryStatus(
+          id,
+          target.status === "new" ? "replied" : "new"
+        );
+      }
+      return {
+        ...prev,
+        inquiries: prev.inquiries.map((inq) =>
+          inq.id === id
+            ? { ...inq, status: inq.status === "new" ? "replied" : "new" }
+            : inq
+        ),
+      };
+    });
   }, []);
 
   const deleteInquiry = useCallback((id: string) => {
+    void deleteRemoteInquiry(id);
     setConfig((prev) => ({
       ...prev,
       inquiries: prev.inquiries.filter((inq) => inq.id !== id),
@@ -713,6 +847,10 @@ export function CmsProvider({ children }: { children: ReactNode }) {
       deleteInquiry,
       importJson,
       resetAll,
+      backendEnabled,
+      session,
+      signIn,
+      signOut,
     }),
     [
       effectiveConfig,
@@ -746,6 +884,9 @@ export function CmsProvider({ children }: { children: ReactNode }) {
       deleteInquiry,
       importJson,
       resetAll,
+      session,
+      signIn,
+      signOut,
     ]
   );
 
