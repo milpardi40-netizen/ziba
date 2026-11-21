@@ -211,6 +211,10 @@ export default function AdminPanel({
     setAutoSyncAr,
     syncState,
     syncArabicNow,
+    backendEnabled,
+    session,
+    signIn,
+    signOut,
     toggleSectionVisibility,
     moveSection,
     addCategory,
@@ -238,6 +242,11 @@ export default function AdminPanel({
      extractStringOverlay — structure, photos, numbers and toggles are
      shared and always live in the base config. */
   const [editLang, setEditLang] = useState<Lang>("en");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const backendLocked = backendEnabled && !session;
   const config: SiteConfig =
     editLang === "ar"
       ? applyOverlay(applyOverlay(rawConfig, DEFAULT_AR), rawConfig.ar)
@@ -948,6 +957,20 @@ export default function AdminPanel({
               >
                 {lang === "fa" ? "English UI" : "نمای فارسی"}
               </button>
+              {backendEnabled &&
+                (session ? (
+                  <button
+                    onClick={() => void signOut()}
+                    className="rounded-full border border-malachite/60 bg-malachite/15 px-3.5 py-2 text-xs font-bold text-malachite"
+                    title={session.user.email ?? ""}
+                  >
+                    {t("متصل به سرور", "Live")} · {t("خروج", "Sign out")}
+                  </button>
+                ) : (
+                  <span className="rounded-full border border-rhodo/50 bg-rhodo/10 px-3.5 py-2 text-xs font-bold text-rhodo">
+                    {t("وارد نشده‌اید", "Signed out")}
+                  </span>
+                ))}
               <button
                 onClick={onClose}
                 className="flex items-center gap-2 rounded-full bg-gold px-4 py-2 text-xs font-bold text-[#1a1206] hover:bg-goldbright"
@@ -6498,6 +6521,90 @@ export default function AdminPanel({
               </div>
             </div>
           </div>
+
+          {/* Owner login gate — shown only when a real backend is
+              configured and nobody is signed in. RLS on the server
+              enforces this too; the panel is unusable until login. */}
+          {backendLocked && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/97 p-5 backdrop-blur-xl">
+              <form
+                className="w-full max-w-sm rounded-3xl border border-edge bg-abyss p-7 shadow-[0_40px_90px_-30px_rgba(0,0,0,0.9)]"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setLoginBusy(true);
+                  setLoginError("");
+                  const res = await signIn(loginEmail.trim(), loginPassword);
+                  setLoginBusy(false);
+                  if (!res.ok) {
+                    setLoginError(
+                      res.error ??
+                        t("ورود ناموفق بود.", "Sign-in failed.")
+                    );
+                  }
+                }}
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/40 bg-gold/10 px-2">
+                  <LogoMark className="h-9 w-auto" />
+                </span>
+                <h3 className="mt-5 font-display text-2xl text-ivory">
+                  {t("ورود مالک فروشگاه", "Owner sign-in")}
+                </h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-dusk">
+                  {t(
+                    "پنل مدیریت به حساب واقعی شما وصل است. با ایمیل و رمزی که در سوپابیس ساختید وارد شوید؛ بدون ورود، هیچ تغییری روی سرور ذخیره نمی‌شود.",
+                    "This panel is connected to your real backend. Sign in with the owner account you created in Supabase — without it, nothing can be saved to the server."
+                  )}
+                </p>
+                <label className="mt-5 block">
+                  <span className="mb-1.5 block text-[11px] font-bold text-mist">
+                    {t("ایمیل", "Email")}
+                  </span>
+                  <input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full rounded-xl border border-edge bg-ink/80 px-3.5 py-2.5 text-sm text-ivory focus:border-gold focus:outline-none"
+                    placeholder="owner@example.com"
+                    autoComplete="username"
+                  />
+                </label>
+                <label className="mt-3.5 block">
+                  <span className="mb-1.5 block text-[11px] font-bold text-mist">
+                    {t("رمز عبور", "Password")}
+                  </span>
+                  <input
+                    type="password"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full rounded-xl border border-edge bg-ink/80 px-3.5 py-2.5 text-sm text-ivory focus:border-gold focus:outline-none"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                  />
+                </label>
+                {loginError && (
+                  <p className="mt-3 rounded-xl border border-rhodo/40 bg-rhodo/10 px-3 py-2 text-[11px] text-rhodo">
+                    {loginError}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={loginBusy}
+                  className="mt-5 w-full rounded-full bg-gold py-3 text-sm font-bold text-[#1a1206] transition-colors hover:bg-goldbright disabled:cursor-wait disabled:opacity-60"
+                >
+                  {loginBusy ? t("در حال ورود…", "Signing in…") : t("ورود به پنل مدیریت", "Sign in to Admin")}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="mt-2.5 w-full rounded-full border border-edge py-3 text-sm font-bold text-mist transition-colors hover:text-ivory"
+                >
+                  {t("بازگشت به سایت", "Back to site")}
+                </button>
+              </form>
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
